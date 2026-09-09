@@ -1,6 +1,6 @@
 {
   "name": "focusflow",
-  "version": "0.0.2",
+  "version": "0.2.0",
   "private": true,
   "main": "main.js",
   "author": "FocusFlow",
