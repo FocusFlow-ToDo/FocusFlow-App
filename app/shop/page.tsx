@@ -31,7 +31,11 @@ import {
   HelpCircle,
   Maximize2,
   Minimize2,
-  Hexagon
+  Hexagon,
+  TrendingUp,
+  Percent,
+  Radio,
+  Trophy
 } from "lucide-react"
 import {
   useShop,
@@ -50,6 +54,7 @@ import { calculateUserStats, getRankData } from "@/lib/stats"
 import { BADGES } from "@/lib/badges"
 import { ProfileEffectOverlay } from "@/components/shop/ProfileEffectOverlay"
 import { Cs2CaseOpeningModal } from "@/components/shop/Cs2CaseOpeningModal"
+import { InventoryModal } from "@/components/shop/InventoryModal"
 import { cn } from "@/lib/utils"
 
 type FilterCategory = "all" | "bundle" | "effect" | "frame" | "title" | "utility" | "sale"
@@ -103,6 +108,7 @@ const COLLECTIONS: { id: ShopCollection; name: string; icon: string; color: stri
   { id: "dragon", name: "Kadim Ejderha", icon: "🐉", color: "from-red-500 to-amber-600" },
   { id: "synthwave", name: "Retro Synthwave", icon: "🕹️", color: "from-fuchsia-500 to-pink-600" },
   { id: "royalty", name: "Kraliyet & Altın", icon: "👑", color: "from-amber-400 to-yellow-600" },
+  { id: "samurai", name: "Gölge Samuray", icon: "🥷", color: "from-rose-600 to-red-800" },
   { id: "essentials", name: "Temel & Destek", icon: "🛡️", color: "from-blue-500 to-indigo-600" }
 ]
 
@@ -126,7 +132,11 @@ export default function ShopPage() {
     equipItem,
     equipBundle,
     openMysteryBox,
-    openCs2Case
+    openCs2Case,
+    quicksellItem,
+    canClaimDailyGift,
+    claimDailyGift,
+    dailyGiftTimeRemaining
   } = useShop()
 
   // Filter & Search states
@@ -141,8 +151,77 @@ export default function ShopPage() {
   const [previewTitleText, setPreviewTitleText] = React.useState<string | null>(null)
   const [isPreviewExpanded, setIsPreviewExpanded] = React.useState(true)
 
+  // ─── FLASH DEAL OF THE DAY (FOMO TIMER TO MIDNIGHT) ───
+  const [secondsUntilMidnight, setSecondsUntilMidnight] = React.useState(0)
+  React.useEffect(() => {
+    const calcSeconds = () => {
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      const diffSec = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000))
+      setSecondsUntilMidnight(diffSec)
+    }
+    calcSeconds()
+    const timer = setInterval(calcSeconds, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const formatCountdown = (totalSec: number) => {
+    const h = Math.floor(totalSec / 3600).toString().padStart(2, "0")
+    const m = Math.floor((totalSec % 3600) / 60).toString().padStart(2, "0")
+    const s = Math.floor(totalSec % 60).toString().padStart(2, "0")
+    return `${h}:${m}:${s}`
+  }
+
+  const formatMs = (ms: number) => {
+    const totalSec = Math.floor(ms / 1000)
+    return formatCountdown(totalSec)
+  }
+
+  // Pick deterministic flash item based on date
+  const flashItem = React.useMemo(() => {
+    const todayStr = new Date().toISOString().slice(0, 10)
+    let hash = 0
+    for (let i = 0; i < todayStr.length; i++) {
+      hash = (hash << 5) - hash + todayStr.charCodeAt(i)
+      hash |= 0
+    }
+    const candidateItems = SHOP_ITEMS.filter((i) => i.category === "frame" || i.category === "effect" || i.category === "bundle")
+    const idx = Math.abs(hash) % candidateItems.length
+    const base = candidateItems[idx] || candidateItems[0]
+    const flashPrice = Math.round(base.price * 0.5)
+    return {
+      ...base,
+      flashPrice,
+      originalBasePrice: base.price,
+      discountPercent: 50,
+      stockRemaining: 2 + (Math.abs(hash) % 3)
+    }
+  }, [])
+
+  // ─── SOCIAL PROOF LIVE RECENT ACTIVITY ───
+  const tickerEvents = React.useMemo(() => [
+    { user: "Barış", action: "Altın İmparator Paketini açtı", badge: "👑 MİTİK", time: "2 dk önce", color: "text-amber-400" },
+    { user: "Kerem", action: "Operasyon Kasasından '★ Kadim Ejder ★' çıkardı", badge: "🎰 0.01 ŞANS", time: "4 dk önce", color: "text-yellow-400" },
+    { user: "Selin", action: "Katana Efendisi Setini kuşandı", badge: "🥷 YENİ", time: "7 dk önce", color: "text-rose-400" },
+    { user: "Mert", action: "Sonsuzluk Tanrısı unvanını kazandı", badge: "⭐ BÜYÜK VURGUN", time: "11 dk önce", color: "text-fuchsia-400" },
+    { user: "Zeynep", action: "7'li Koruma Kalkanı satın aldı", badge: "🛡️ SERİ KORUMASI", time: "15 dk önce", color: "text-sky-400" }
+  ], [])
+
+  const [tickerIndex, setTickerIndex] = React.useState(0)
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setTickerIndex((prev) => (prev + 1) % tickerEvents.length)
+    }, 4500)
+    return () => clearInterval(interval)
+  }, [tickerEvents.length])
+  const activeTickerEvent = tickerEvents[tickerIndex]
+
   // CS2 Case Opening Modal
   const [cs2ModalOpen, setCs2ModalOpen] = React.useState(false)
+
+  // Personal Inventory Modal
+  const [inventoryModalOpen, setInventoryModalOpen] = React.useState(false)
 
   // Refund Confirmation Modal
   const [returnConfirmItem, setReturnConfirmItem] = React.useState<ShopItem | null>(null)
@@ -301,26 +380,44 @@ export default function ShopPage() {
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar bg-[#080b12] text-zinc-100 selection:bg-indigo-500/30">
       <div className="pb-28 pt-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* ─── LIVE SOCIAL PROOF ACTIVITY TICKER ─── */}
+        <div className="mb-4 flex items-center justify-between px-4 py-2.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-md overflow-hidden text-xs shadow-lg">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono text-[10px] font-bold border border-emerald-500/30 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>CANLI AKIŞ</span>
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTickerEvent.user + activeTickerEvent.action}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="flex items-center gap-2 truncate"
+              >
+                <span className="font-bold text-white shrink-0">{activeTickerEvent.user}</span>
+                <span className="text-zinc-400 truncate">{activeTickerEvent.action}</span>
+                <span className={cn("px-2 py-0.5 rounded-md text-[10px] font-black border border-white/10 bg-white/5 shrink-0", activeTickerEvent.color)}>
+                  {activeTickerEvent.badge}
+                </span>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <div className="text-[10px] text-zinc-500 shrink-0 font-medium ml-3 hidden sm:flex items-center gap-1">
+            <Clock className="w-3 h-3 text-zinc-500" />
+            <span>{activeTickerEvent.time}</span>
+          </div>
+        </div>
+
         {/* ─────────────────────────────────────────────────────────────
             1. FOCUSFLOW ATMOSPHERIC HERO BANNER
         ───────────────────────────────────────────────────────────── */}
       <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-br from-indigo-950/60 via-[#0d1222]/90 to-purple-950/50 p-6 sm:p-8 mb-8 shadow-2xl backdrop-blur-xl">
-        {/* Animated ambient glow spots */}
-        <motion.div
-          className="absolute top-0 right-10 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"
-          animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.25, 0.15] }}
-          transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute -bottom-10 left-10 w-80 h-80 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.12, 0.22, 0.12] }}
-          transition={{ repeat: Infinity, duration: 8, ease: "easeInOut", delay: 1 }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/8 rounded-full blur-3xl pointer-events-none"
-          animate={{ scale: [0.8, 1.1, 0.8], opacity: [0.05, 0.15, 0.05] }}
-          transition={{ repeat: Infinity, duration: 5, ease: "easeInOut", delay: 2 }}
-        />
+        {/* Subtle static ambient glow spots for silky smooth 60fps performance */}
+        <div className="absolute top-0 right-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 left-10 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Subtle grid pattern overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
@@ -330,9 +427,9 @@ export default function ShopPage() {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-3 tracking-wide"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-3 tracking-wide shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 animate-spin text-indigo-400" style={{ animationDuration: '3s' }} />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
               <span>FOCUSFLOW KOZMETİK MAĞAZASI</span>
             </motion.div>
             <motion.h1
@@ -358,26 +455,52 @@ export default function ShopPage() {
             </motion.p>
           </div>
 
-          {/* Quick Stats & Balances */}
+          {/* Quick Stats & Interactive Triggers (Balance removed per request as already in header) */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.15 }}
             className="flex flex-wrap items-center gap-3"
           >
-            {/* Focus Coins - Premium Style */}
-            <div className="flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-br from-amber-500/15 to-yellow-500/10 border border-amber-500/30 shadow-[0_0_25px_rgba(245,158,11,0.12)] hover:shadow-[0_0_35px_rgba(245,158,11,0.2)] transition-shadow">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/30 to-yellow-600/20 flex items-center justify-center text-amber-300 border border-amber-500/40 shadow-inner">
-                <Coins className="w-5 h-5" />
+            {/* Daily Free Gift Trigger (Psikolojik Çengel: Günlük Ödül) */}
+            <button
+              onClick={() => {
+                if (canClaimDailyGift) claimDailyGift()
+              }}
+              disabled={!canClaimDailyGift}
+              className={cn(
+                "group relative flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left overflow-hidden",
+                canClaimDailyGift
+                  ? "bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-green-500/20 border-emerald-500/40 hover:border-emerald-400 hover:scale-[1.03] active:scale-[0.98] shadow-lg cursor-pointer"
+                  : "bg-white/[0.04] border-white/10 opacity-75 cursor-not-allowed"
+              )}
+            >
+              <div className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center border shrink-0 transition-transform",
+                canClaimDailyGift
+                  ? "bg-emerald-500/25 text-emerald-300 border-emerald-400/40 group-hover:rotate-12 group-hover:scale-110"
+                  : "bg-white/5 text-zinc-400 border-white/10"
+              )}>
+                <Gift className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-[10px] font-semibold text-amber-400/80 tracking-wider uppercase">Bakiye</div>
-                <div className="text-2xl font-black text-amber-300 tracking-tight leading-none">
-                  {focusCoins.toLocaleString()}
-                  <span className="text-sm font-normal text-amber-400/60 ml-1">🪙</span>
+                <div className="text-[10px] font-bold tracking-wider uppercase flex items-center gap-1.5">
+                  <span className={canClaimDailyGift ? "text-emerald-400" : "text-zinc-400"}>Ücretsiz Hediye</span>
+                  {canClaimDailyGift && (
+                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/40 text-[9px] text-emerald-200 font-bold">
+                      HAZIR!
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs font-black text-white">
+                  {canClaimDailyGift ? (
+                    <span className="text-emerald-300">Hemen Aç 🎁</span>
+                  ) : (
+                    <span className="font-mono text-zinc-400">{formatMs(dailyGiftTimeRemaining)}</span>
+                  )}
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Streak Freezes */}
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-sky-500/10 border border-sky-500/30 shadow-[0_0_20px_rgba(56,189,248,0.1)]">
@@ -393,24 +516,39 @@ export default function ShopPage() {
               </div>
             </div>
 
-            {/* CS2 Case Opening Button - More Premium */}
+            {/* Direct Inventory Button */}
+            <button
+              onClick={() => setInventoryModalOpen(true)}
+              className="group relative flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-indigo-500/15 border border-indigo-500/40 hover:border-indigo-400 hover:bg-indigo-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg cursor-pointer overflow-hidden"
+            >
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-purple-600/20 flex items-center justify-center text-indigo-300 group-hover:rotate-12 group-hover:scale-105 transition-transform border border-indigo-500/40">
+                <Package className="w-5 h-5" />
+              </div>
+              <div className="relative text-left">
+                <div className="text-[10px] font-bold text-indigo-400 tracking-wider uppercase flex items-center gap-1.5">
+                  <span>Envanterim</span>
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-500/30 text-[9px] text-indigo-200 font-mono">
+                    {inventory.length} Eşya
+                  </span>
+                </div>
+                <div className="text-sm font-black text-white group-hover:text-indigo-200 transition-colors">
+                  Kozmetiklerim 🎒
+                </div>
+              </div>
+            </button>
+
+            {/* CS2 Case Opening Button - Multi-tier Ready */}
             <button
               onClick={handleOpenCs2Case}
-              className="group relative flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-br from-yellow-500/20 via-amber-500/15 to-orange-500/20 border border-amber-500/40 hover:border-amber-400 transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg cursor-pointer overflow-hidden"
+              className="group relative flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-gradient-to-br from-yellow-500/15 via-amber-500/10 to-orange-500/15 border border-amber-500/40 hover:border-amber-400 hover:bg-amber-500/20 transition-all hover:scale-[1.03] active:scale-[0.98] shadow-lg cursor-pointer overflow-hidden"
             >
-              {/* Shimmer effect */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/10 to-transparent"
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
-              />
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/40 to-yellow-600/30 flex items-center justify-center text-amber-300 group-hover:rotate-12 transition-transform border border-amber-500/50">
-                <Gift className="w-5 h-5" />
+              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/30 to-yellow-600/20 flex items-center justify-center text-amber-300 group-hover:rotate-12 group-hover:scale-105 transition-transform border border-amber-500/40">
+                <Crown className="w-5 h-5" />
               </div>
               <div className="relative text-left">
                 <div className="text-[10px] font-bold text-amber-400 tracking-wider uppercase flex items-center gap-1.5">
-                  <span>Şans Kasası</span>
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500/30 text-[9px] text-amber-200 font-mono">150 🪙</span>
+                  <span>Şans Kasaları</span>
+                  <span className="px-1.5 py-0.5 rounded bg-amber-500/30 text-[9px] text-amber-200 font-mono">3 Kademe</span>
                 </div>
                 <div className="text-sm font-black text-white group-hover:text-amber-200 transition-colors">
                   Kasayı Aç! 🎰
@@ -420,6 +558,117 @@ export default function ShopPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          1.5 FLASH DEAL OF THE DAY (GÜNÜN FIRSATI & FOMO SİSTEMİ)
+      ───────────────────────────────────────────────────────────── */}
+      {flashItem && (
+        <div className="mb-8 relative rounded-3xl overflow-hidden border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-[#130b1c]/80 to-amber-950/30 p-6 shadow-2xl backdrop-blur-xl">
+          {/* Subtle pulsating beacon */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-6">
+            {/* Left Col: Badges, Title & Desc */}
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2.5 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 text-white text-xs font-black shadow-lg shadow-rose-500/25 uppercase tracking-wider">
+                  <Flame className="w-3.5 h-3.5 fill-white" />
+                  Günün Yıldız Fırsatı
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-mono font-bold">
+                  <Clock className="w-3.5 h-3.5 text-rose-400" />
+                  {formatCountdown(secondsUntilMidnight)}
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold">
+                  🔥 Son {flashItem.stockRemaining} Adet Kaldı!
+                </span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                <span>{flashItem.name}</span>
+                <span className="text-xs px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/40 uppercase font-mono">
+                  %50 İNDİRİM
+                </span>
+              </h2>
+
+              <p className="mt-2 text-zinc-300 text-xs sm:text-sm max-w-xl leading-relaxed">
+                {flashItem.desc}
+              </p>
+
+              {/* Price & Action */}
+              <div className="mt-5 flex flex-wrap items-center gap-4">
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-xs text-zinc-500 line-through font-mono font-semibold">
+                    {flashItem.originalBasePrice} 🪙
+                  </span>
+                  <span className="text-3xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]">
+                    {flashItem.flashPrice}
+                    <span className="text-base font-normal text-amber-300 ml-1">🪙</span>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleTryOn(flashItem)}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all border border-white/10 flex items-center gap-1.5"
+                  >
+                    <Eye className="w-4 h-4 text-cyan-400" />
+                    <span>Dene</span>
+                  </button>
+
+                  {inventory.includes(flashItem.id) ? (
+                    <div className="px-5 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                      <Check className="w-4 h-4" />
+                      <span>Envanterinde Mevcut</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => buyItem({ ...flashItem, price: flashItem.flashPrice })}
+                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-zinc-950 text-xs font-black transition-all hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/25 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Zap className="w-4 h-4 fill-zinc-950" />
+                      <span>Fırsatı Yakala ⚡</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Col: Goal Gradient Progress (Hedef İlerlemesi) */}
+            <div className="lg:w-72 p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between text-xs font-bold text-zinc-300 mb-1.5">
+                  <span className="flex items-center gap-1 text-amber-400">
+                    <Trophy className="w-3.5 h-3.5" />
+                    Koleksiyoncu İlerlemesi
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-400">
+                    {inventory.length} / 25
+                  </span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (inventory.length / 25) * 100)}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                  />
+                </div>
+                <p className="text-[10px] text-zinc-400 mt-2 leading-relaxed">
+                  Koleksiyonunu genişlettikçe nadir Mitik unvan ve rozetlerin kilidini aç!
+                </p>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-[11px]">
+                <span className="text-zinc-400">Garanti İade:</span>
+                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" /> 72 Saat
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           2. FOCUSFLOW INTERACTIVE LIVE PREVIEW STUDIO (DENEME KABİNİ)
@@ -655,12 +904,6 @@ export default function ShopPage() {
                   <p className="text-xs text-zinc-400">
                     Setlerin profilinde nasıl durduğunu anında canlı gör ve indirimli fiyata tek tıkla satın al!
                   </p>
-                </div>
-
-                <div className="text-left sm:text-right shrink-0">
-                  <span className="text-xs font-mono text-zinc-400">
-                    Mevcut Bakiye: <strong className="text-amber-400 font-bold">{focusCoins} 🪙</strong>
-                  </span>
                 </div>
               </div>
 
@@ -1183,12 +1426,17 @@ export default function ShopPage() {
 
                 {/* ── Visual Item Preview Box ── */}
                 <div className="relative h-36 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center overflow-hidden mb-4 group-hover:border-white/20 transition-colors">
-                  {/* Category = Effect */}
+                  {/* Category = Effect (Hover to awaken effect for silky 60fps performance) */}
                   {item.category === "effect" && (
                     <div className="absolute inset-0">
-                      <ProfileEffectOverlay effectId={item.effectType || item.id} />
+                      {/* Active profile effect ONLY ON HOVER */}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <ProfileEffectOverlay effectId={item.effectType || item.id} />
+                      </div>
+                      {/* Subtle static gradient when idle */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-purple-900/20 via-indigo-900/10 to-transparent group-hover:opacity-20 transition-opacity pointer-events-none" />
                       <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none">
-                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/25 shadow-xl bg-zinc-900 relative">
+                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-white/25 shadow-xl bg-zinc-900 relative group-hover:scale-105 transition-transform">
                           {user?.photoURL ? (
                             <img
                               src={user.photoURL}
@@ -1201,8 +1449,9 @@ export default function ShopPage() {
                             </div>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono font-bold text-indigo-200 mt-1 drop-shadow">
-                          Profil Efekti
+                        <span className="text-[10px] font-mono font-bold text-indigo-200 mt-1 drop-shadow flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-indigo-400" />
+                          <span>Profil Efekti</span>
                         </span>
                       </div>
                     </div>
@@ -1251,9 +1500,9 @@ export default function ShopPage() {
 
                     return (
                       <div className="relative z-10 w-full h-full flex flex-col items-center justify-center">
-                        {/* Live background effect for this bundle */}
+                        {/* Live background effect for this bundle - ONLY on card hover */}
                         {bEffectId && (
-                          <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-60">
+                          <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none opacity-0 group-hover:opacity-80 transition-opacity duration-300">
                             <ProfileEffectOverlay effectId={bEffectId} intensity="subtle" />
                           </div>
                         )}
@@ -1300,11 +1549,11 @@ export default function ShopPage() {
                   {item.category === "utility" && (
                     <div className="relative z-10 flex flex-col items-center">
                       {item.id === "chest_mystery" ? (
-                        <Gift className="w-14 h-14 text-amber-400 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] animate-bounce" />
+                        <Gift className="w-14 h-14 text-amber-400 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] group-hover:scale-110 group-hover:rotate-6 transition-transform" />
                       ) : item.id.includes("freeze") ? (
-                        <Snowflake className="w-12 h-12 text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]" />
+                        <Snowflake className="w-12 h-12 text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.8)] group-hover:rotate-45 transition-transform" />
                       ) : (
-                        <Zap className="w-12 h-12 text-amber-400 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)]" />
+                        <Zap className="w-12 h-12 text-amber-400 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] group-hover:scale-110 transition-transform" />
                       )}
                     </div>
                   )}
@@ -1421,6 +1670,19 @@ export default function ShopPage() {
         onClose={() => setCs2ModalOpen(false)}
         focusCoins={focusCoins}
         onOpenCase={openCs2Case}
+        onQuicksell={quicksellItem}
+      />
+
+      {/* ─────────────────────────────────────────────────────────────
+          7.5 INVENTORY MODAL (KİŞİSEL ENVANTER VE KOZMETİKLER)
+      ───────────────────────────────────────────────────────────── */}
+      <InventoryModal
+        isOpen={inventoryModalOpen}
+        onClose={() => setInventoryModalOpen(false)}
+        onOpenCs2Modal={() => {
+          setInventoryModalOpen(false)
+          setCs2ModalOpen(true)
+        }}
       />
 
       {/* ─────────────────────────────────────────────────────────────

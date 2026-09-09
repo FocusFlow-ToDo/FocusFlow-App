@@ -562,6 +562,133 @@ export function ProfileEffectOverlay({ effectId, className = "", intensity = "no
         </div>
       )
 
+    case "effect_katana":
+      return (
+        <div className={`absolute inset-0 overflow-hidden pointer-events-none z-10 ${className}`}>
+          {/* Katana slash diagonal light beams */}
+          <motion.div
+            className="absolute h-[2px] w-[140%] bg-gradient-to-r from-transparent via-rose-400 to-white shadow-[0_0_15px_#f43f5e]"
+            style={{ transform: "rotate(-32deg)", top: "35%", left: "-20%" }}
+            animate={{
+              opacity: [0, 1, 0],
+              scaleX: [0.2, 1.2, 0.4],
+              x: ["-30%", "30%", "-30%"]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 2.8,
+              repeatDelay: 1.2,
+              ease: "easeInOut"
+            }}
+          />
+          {/* Blood-red and crimson ambience */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-rose-950/25 via-red-900/10 to-transparent pointer-events-none" />
+          {/* Crimson blade sparks & sakura leaves */}
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <motion.div
+              key={i}
+              className={`absolute rounded-full ${i % 2 === 0 ? "w-2 h-2 bg-rose-400 shadow-[0_0_10px_#f43f5e]" : "w-1.5 h-1.5 bg-amber-300 shadow-[0_0_8px_#f59e0b]"}`}
+              style={{ left: `${15 + i * 14}%`, top: `${20 + (i % 3) * 25}%` }}
+              animate={{
+                y: [0, -25, 0],
+                x: [0, (i % 2 === 0 ? 18 : -18), 0],
+                opacity: [0, 0.9, 0],
+                scale: [0.5, 1.4, 0.5]
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 2 + (i % 3) * 0.6,
+                delay: i * 0.35,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </div>
+      )
+
+    case "effect_angelic":
+      return (
+        <div className={`absolute inset-0 overflow-hidden pointer-events-none z-10 ${className}`}>
+          {/* Divine golden rays aura */}
+          <motion.div
+            className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(254,240,138,0.25)_0%,rgba(245,158,11,0.1)_45%,transparent_75%)]"
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+          />
+          {/* Ascending holy feather particles */}
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.8)] text-xs"
+              style={{ left: `${10 + i * 13}%`, bottom: "-10%" }}
+              animate={{
+                y: ["0%", "-480%"],
+                x: [0, (i % 2 === 0 ? 15 : -15), 0],
+                rotate: [0, 45, -30, 0],
+                opacity: [0, 0.9, 0]
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 4 + (i % 3) * 1.2,
+                delay: i * 0.5,
+                ease: "easeInOut"
+              }}
+            >
+              🪶
+            </motion.div>
+          ))}
+          {/* Angelic stars twinkling */}
+          {[18, 48, 78].map((pos, idx) => (
+            <motion.div
+              key={idx}
+              className="absolute w-2 h-2 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.9)]"
+              style={{ top: "25%", left: `${pos}%` }}
+              animate={{ scale: [0.6, 1.5, 0.6], opacity: [0.3, 1, 0.3] }}
+              transition={{ repeat: Infinity, duration: 2, delay: idx * 0.6 }}
+            />
+          ))}
+        </div>
+      )
+
+    case "effect_blackhole":
+      return (
+        <div className={`absolute inset-0 overflow-hidden pointer-events-none z-10 ${className}`}>
+          {/* Gravitational center singularity */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-black border border-purple-500/60 shadow-[0_0_40px_rgba(147,51,234,0.7),inset_0_0_20px_rgba(0,0,0,1)]" />
+          {/* Accretion disc rotating */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full border-4 border-dashed border-violet-400/40 shadow-[0_0_30px_rgba(139,92,246,0.6)]"
+            animate={{ rotate: 360, scale: [0.95, 1.05, 0.95] }}
+            transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+          />
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 rounded-full border-2 border-indigo-400/50 shadow-[0_0_25px_rgba(99,102,241,0.5)]"
+            animate={{ rotate: -360 }}
+            transition={{ repeat: Infinity, duration: 7, ease: "linear" }}
+          />
+          {/* Cosmic particles getting sucked in */}
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1.5 h-1.5 rounded-full bg-violet-300 shadow-[0_0_8px_#c084fc]"
+              style={{ top: "50%", left: "50%" }}
+              animate={{
+                x: [Math.cos((i * 60 * Math.PI) / 180) * 80, 0],
+                y: [Math.sin((i * 60 * Math.PI) / 180) * 80, 0],
+                opacity: [0, 1, 0],
+                scale: [1.2, 0.2]
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 2.2,
+                delay: i * 0.35,
+                ease: "easeIn"
+              }}
+            />
+          ))}
+        </div>
+      )
+
     default:
       return null
   }

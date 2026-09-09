@@ -565,10 +565,13 @@ if (autoUpdater) {
 // IPC Handlers for Auto-Updater
 ipcMain.handle('get-app-version', () => app.getVersion());
 
+// Track the path of a downloaded installer for dev-mode manual downloads
+let downloadedInstallerPath = null;
+
 ipcMain.handle('check-for-updates', async () => {
   const currentVersion = app.getVersion();
 
-  // Geliştirici modunda GitHub Releases API üzerinden kontrol et
+  // Geliştirici modunda veya autoUpdater yoksa GitHub Releases API ile kontrol et
   if (isDev || !autoUpdater) {
     try {
       sendUpdaterStatus('checking');
@@ -592,10 +595,18 @@ ipcMain.handle('check-for-updates', async () => {
       const hasUpdate = isNewerVersion(latestVersion, currentVersion);
 
       if (hasUpdate) {
+        // Find the .exe asset for download
+        const assets = release.assets || [];
+        const exeAsset = assets.find(a => a.name && a.name.endsWith('.exe') && !a.name.includes('blockmap'));
+        const downloadUrl = exeAsset ? exeAsset.browser_download_url : null;
+        const downloadSize = exeAsset ? exeAsset.size : 0;
+
         sendUpdaterStatus('available', {
           version: latestVersion,
           releaseNotes: release.body,
           releaseUrl: release.html_url,
+          downloadUrl: downloadUrl,
+          downloadSize: downloadSize,
           isDev: true,
         });
         return {
@@ -603,7 +614,9 @@ ipcMain.handle('check-for-updates', async () => {
           updateAvailable: true,
           version: latestVersion,
           releaseNotes: release.body,
-          releaseUrl: release.html_url
+          releaseUrl: release.html_url,
+          downloadUrl: downloadUrl,
+          downloadSize: downloadSize,
         };
       } else {
         sendUpdaterStatus('not-available', { version: currentVersion });
@@ -626,16 +639,86 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+// Download update from GitHub (dev mode manual download)
+ipcMain.handle('download-update', async (event, downloadUrl) => {
+  if (!downloadUrl) {
+    sendUpdaterStatus('error', { error: 'İndirme URL bulunamadı' });
+    return { success: false, error: 'No download URL' };
+  }
+
+  try {
+    const os = require('os');
+    const fileName = path.basename(new URL(downloadUrl).pathname);
+    const savePath = path.join(os.tmpdir(), fileName);
+
+    sendUpdaterStatus('downloading', { percent: 0, transferred: 0, total: 0 });
+
+    const response = await net.fetch(downloadUrl, {
+      headers: { 'User-Agent': `FocusFlow/${app.getVersion()}` }
+    });
+
+    if (!response.ok) {
+      throw new Error(`İndirme hatası: HTTP ${response.status}`);
+    }
+
+    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+    const reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+
+      const percent = contentLength > 0 ? Math.round((received / contentLength) * 100) : 0;
+      sendUpdaterStatus('downloading', {
+        percent,
+        transferred: received,
+        total: contentLength,
+        bytesPerSecond: 0,
+      });
+    }
+
+    // Combine chunks and write to file
+    const buffer = Buffer.concat(chunks);
+    fs.writeFileSync(savePath, buffer);
+
+    downloadedInstallerPath = savePath;
+
+    console.log('[Updater] Downloaded installer to:', savePath);
+    sendUpdaterStatus('downloaded', {
+      version: '',
+      installerPath: savePath,
+    });
+
+    return { success: true, path: savePath };
+  } catch (err) {
+    const errorMsg = err.message || 'İndirme başarısız oldu';
+    console.error('[Updater] Download error:', errorMsg);
+    sendUpdaterStatus('error', { error: errorMsg });
+    return { success: false, error: errorMsg };
+  }
+});
+
 ipcMain.handle('install-update', () => {
   if (autoUpdater && !isDev) {
     autoUpdater.quitAndInstall(false, true);
     return { success: true };
+  } else if (downloadedInstallerPath && fs.existsSync(downloadedInstallerPath)) {
+    // Dev modunda indirilen installer'ı çalıştır
+    const { execFile } = require('child_process');
+    execFile(downloadedInstallerPath, { detached: true, stdio: 'ignore' });
+    setTimeout(() => app.quit(), 1000);
+    return { success: true };
   } else {
-    // Dev ortamında doğrudan GitHub indirme sayfasına yönlendir
+    // Fallback: GitHub releases sayfasını aç
     shell.openExternal('https://github.com/FocusFlow-ToDo/FocusFlow-App/releases/latest');
     return { success: true, redirected: true };
   }
 });
+
 
 // =============================================
 // ★ App Ready

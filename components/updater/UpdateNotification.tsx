@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import { motion, AnimatePresence } from "motion/react"
-import { Sparkles, Download, RefreshCw, X, ArrowUpCircle, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react"
-import { Button } from "@/components/ui/Button"
+import {
+  Download, RefreshCw, X, ArrowUpCircle, CheckCircle2,
+  AlertTriangle, Rocket, Zap
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface UpdaterEventData {
@@ -15,22 +17,36 @@ interface UpdaterEventData {
   total?: number
   releaseNotes?: string
   releaseUrl?: string
+  downloadUrl?: string
+  downloadSize?: number
   error?: string
   isDev?: boolean
+  installerPath?: string
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
 }
 
 export function UpdateNotification() {
   const [updateState, setUpdateState] = React.useState<UpdaterEventData>({ status: "idle" })
   const [dismissed, setDismissed] = React.useState(false)
   const [installing, setInstalling] = React.useState(false)
+  const [isDownloading, setIsDownloading] = React.useState(false)
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !(window as any).electron) return
 
     const handleUpdaterStatus = (data: UpdaterEventData) => {
-      // If we received an update status, reset dismissed state so the user sees it
       if (data.status === "available" || data.status === "downloaded" || data.status === "downloading") {
         setDismissed(false)
+      }
+      if (data.status === "downloaded") {
+        setIsDownloading(false)
       }
       setUpdateState(data)
     }
@@ -41,6 +57,18 @@ export function UpdateNotification() {
       ;(window as any).electron.ipcRenderer.removeListener("updater-status", handleUpdaterStatus)
     }
   }, [])
+
+  const handleDownload = async () => {
+    if (typeof window === "undefined" || !(window as any).electron) return
+    if (!updateState.downloadUrl) return
+    setIsDownloading(true)
+    try {
+      await (window as any).electron.ipcRenderer.invoke("download-update", updateState.downloadUrl)
+    } catch (err) {
+      console.error("Download failed:", err)
+      setIsDownloading(false)
+    }
+  }
 
   const handleInstall = async () => {
     if (typeof window === "undefined" || !(window as any).electron) return
@@ -53,109 +81,194 @@ export function UpdateNotification() {
     }
   }
 
-  // Only show notification for available, downloading, or downloaded states
   const shouldShow =
     !dismissed &&
     (updateState.status === "available" ||
       updateState.status === "downloading" ||
-      updateState.status === "downloaded")
+      updateState.status === "downloaded" ||
+      updateState.status === "error")
+
+  const percent = updateState.percent || 0
+  const versionStr = updateState.version ? `v${updateState.version.replace(/^v/, "")}` : ""
 
   return (
     <AnimatePresence>
       {shouldShow && (
         <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.95 }}
+          initial={{ opacity: 0, y: 60, scale: 0.92 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 50, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="fixed bottom-6 right-6 z-[9999] max-w-sm w-full"
+          exit={{ opacity: 0, y: 60, scale: 0.92 }}
+          transition={{ type: "spring", stiffness: 340, damping: 26 }}
+          className="fixed bottom-5 right-5 z-[9999] w-[360px]"
         >
-          <div className="relative rounded-2xl p-4 bg-[#12121a]/95 backdrop-blur-2xl border border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden">
-            {/* Top Glow Accent */}
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-400" />
+          {/* Main Container — matches app's glass-card style */}
+          <div className="relative rounded-2xl overflow-hidden glass-card" style={{
+            background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)",
+            boxShadow: "0 25px 60px -12px rgba(0,0,0,0.7), 0 0 1px rgba(255,255,255,0.05)"
+          }}>
 
-            {/* Header & Close Button */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 flex-shrink-0">
+            {/* Accent glow — uses app's accent color system */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: updateState.status === "downloaded"
+                ? "radial-gradient(ellipse at 30% 0%, rgba(16,185,129,0.12) 0%, transparent 70%)"
+                : updateState.status === "downloading"
+                ? "radial-gradient(ellipse at 30% 0%, rgba(59,130,246,0.12) 0%, transparent 70%)"
+                : updateState.status === "error"
+                ? "radial-gradient(ellipse at 30% 0%, rgba(249,115,22,0.10) 0%, transparent 70%)"
+                : "radial-gradient(ellipse at 30% 0%, rgb(var(--accent-rgb) / 0.12) 0%, transparent 70%)"
+            }} />
+
+            <div className="relative p-5">
+              {/* Header Row */}
+              <div className="flex items-start gap-3.5">
+                {/* Icon */}
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                  "border transition-all duration-500",
+                  updateState.status === "downloaded"
+                    ? "bg-emerald-500/10 border-emerald-500/20"
+                    : updateState.status === "downloading"
+                    ? "bg-blue-500/10 border-blue-500/20"
+                    : updateState.status === "error"
+                    ? "bg-orange-500/10 border-orange-500/20"
+                    : "accent-bg-soft accent-border"
+                )}>
                   {updateState.status === "downloaded" ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                    <CheckCircle2 className="w-[18px] h-[18px] text-emerald-400" />
                   ) : updateState.status === "downloading" ? (
-                    <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                    <Download className="w-[18px] h-[18px] text-blue-400 animate-bounce" />
+                  ) : updateState.status === "error" ? (
+                    <AlertTriangle className="w-[18px] h-[18px] text-orange-400" />
                   ) : (
-                    <Sparkles className="w-4 h-4 text-blue-200" />
+                    <Rocket className="w-[18px] h-[18px] accent-text" />
                   )}
                 </div>
-                <div>
-                  <h4 className="text-[13px] font-bold text-white leading-tight">
+
+                {/* Title & Meta */}
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-zinc-100 leading-tight">
+                      {updateState.status === "downloaded"
+                        ? "Güncelleme Hazır!"
+                        : updateState.status === "downloading"
+                        ? "İndiriliyor"
+                        : updateState.status === "error"
+                        ? "Bağlantı Hatası"
+                        : "Yeni Güncelleme"}
+                    </h4>
+                    {versionStr && updateState.status !== "error" && (
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide border",
+                        updateState.status === "downloaded"
+                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                          : updateState.status === "downloading"
+                          ? "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                          : "accent-bg-soft accent-border accent-text"
+                      )}>
+                        {versionStr}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-1 font-medium leading-relaxed">
                     {updateState.status === "downloaded"
-                      ? "Güncelleme Yüklenmeye Hazır!"
+                      ? "Güncelleme indirildi, yüklemek için yeniden başlatın."
                       : updateState.status === "downloading"
-                      ? "Yeni Sürüm İndiriliyor..."
-                      : "Yeni Sürüm Mevcut!"}
-                  </h4>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 font-medium">
-                    {updateState.version ? `v${updateState.version.replace(/^v/, "")}` : "En son FocusFlow güncellemesi"}
+                      ? updateState.transferred && updateState.total
+                        ? `${formatBytes(updateState.transferred)} / ${formatBytes(updateState.total)}`
+                        : "Dosya indiriliyor, lütfen bekleyin..."
+                      : updateState.status === "error"
+                      ? (updateState.error || "Güncelleme kontrol edilemedi.")
+                      : updateState.downloadSize
+                      ? `Yeni sürüm hazır · ${formatBytes(updateState.downloadSize)}`
+                      : "Yeni bir FocusFlow sürümü mevcut."}
                   </p>
                 </div>
+
+                {/* Close */}
+                <button
+                  onClick={() => setDismissed(true)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.06] transition-all duration-200 -mt-0.5 -mr-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
 
-              <button
-                onClick={() => setDismissed(true)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
-                title="Kapat"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+              {/* Progress Bar — downloading state */}
+              {updateState.status === "downloading" && (
+                <div className="mt-4">
+                  <div className="h-[6px] w-full bg-white/[0.04] rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{
+                        background: "linear-gradient(90deg, rgb(var(--accent-rgb)), rgb(var(--accent-light-rgb)))",
+                        boxShadow: "0 0 12px rgb(var(--accent-rgb) / 0.4)"
+                      }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percent}%` }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-zinc-600 font-mono">İndirme devam ediyor...</span>
+                    <span className="text-[11px] font-bold accent-text font-mono">%{percent}</span>
+                  </div>
+                </div>
+              )}
 
-            {/* Downloading Progress Bar */}
-            {updateState.status === "downloading" && (
-              <div className="mt-3 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                  <span>İndiriliyor</span>
-                  <span className="font-bold text-blue-400">{updateState.percent || 0}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-                    style={{ width: `${updateState.percent || 0}%` }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
+              {/* Action Area */}
+              <div className="mt-4">
+                {/* Available + has download URL → Download button */}
+                {updateState.status === "available" && updateState.downloadUrl && (
+                  <button
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    className={cn(
+                      "w-full h-10 rounded-xl text-[13px] font-bold transition-all duration-300",
+                      "flex items-center justify-center gap-2",
+                      "accent-bg hover:opacity-90 active:scale-[0.98]",
+                      "text-white accent-shadow",
+                      "disabled:opacity-40 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    <Download className="w-4 h-4" />
+                    {isDownloading ? "Başlatılıyor..." : "Güncellemeyi İndir"}
+                  </button>
+                )}
+
+                {/* Available + no download URL → GitHub fallback */}
+                {updateState.status === "available" && !updateState.downloadUrl && (
+                  <button
+                    onClick={handleInstall}
+                    className={cn(
+                      "w-full h-10 rounded-xl text-[13px] font-bold transition-all duration-300",
+                      "flex items-center justify-center gap-2",
+                      "glass-card-hover bg-white/[0.04] border border-white/[0.06]",
+                      "text-zinc-300 hover:text-white"
+                    )}
+                  >
+                    <Zap className="w-4 h-4" />
+                    GitHub Sayfasına Git
+                  </button>
+                )}
+
+                {/* Downloaded → Install & restart */}
+                {updateState.status === "downloaded" && (
+                  <button
+                    onClick={handleInstall}
+                    disabled={installing}
+                    className={cn(
+                      "w-full h-10 rounded-xl text-[13px] font-bold transition-all duration-300",
+                      "flex items-center justify-center gap-2",
+                      "bg-emerald-500 hover:bg-emerald-400 active:scale-[0.98]",
+                      "text-white shadow-lg shadow-emerald-500/20",
+                      "disabled:opacity-40 disabled:cursor-not-allowed"
+                    )}
+                  >
+                    <ArrowUpCircle className="w-4 h-4" />
+                    {installing ? "Yeniden Başlatılıyor..." : "Kur ve Yeniden Başlat"}
+                  </button>
+                )}
               </div>
-            )}
-
-            {/* Actions */}
-            <div className="mt-3.5 flex items-center gap-2">
-              {updateState.status === "downloaded" && (
-                <Button
-                  size="sm"
-                  onClick={handleInstall}
-                  disabled={installing}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-[12px] h-9 shadow-lg shadow-emerald-500/20"
-                >
-                  <ArrowUpCircle className="w-4 h-4 mr-1.5" />
-                  {installing ? "Yeniden Başlatılıyor..." : "Yeniden Başlat ve Güncelle"}
-                </Button>
-              )}
-
-              {updateState.status === "available" && updateState.isDev && (
-                <Button
-                  size="sm"
-                  onClick={handleInstall}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-[12px] h-9 shadow-lg shadow-blue-500/20"
-                >
-                  <ExternalLink className="w-4 h-4 mr-1.5" />
-                  GitHub Release Sayfasına Git
-                </Button>
-              )}
-
-              {updateState.status === "available" && !updateState.isDev && (
-                <p className="text-[11px] text-zinc-400 italic">
-                  Güncelleme arka planda otomatik olarak indiriliyor...
-                </p>
-              )}
             </div>
           </div>
         </motion.div>

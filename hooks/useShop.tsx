@@ -7,7 +7,7 @@ import confetti from "canvas-confetti"
 
 export type ItemCategory = "utility" | "frame" | "effect" | "title" | "bundle"
 export type ItemRarity = "common" | "rare" | "epic" | "legendary"
-export type ShopCollection = "all" | "cosmic" | "cyberpunk" | "anime" | "dragon" | "synthwave" | "royalty" | "essentials" | "prestige" | "mythic"
+export type ShopCollection = "all" | "cosmic" | "cyberpunk" | "anime" | "dragon" | "synthwave" | "royalty" | "essentials" | "prestige" | "mythic" | "samurai"
 
 export interface ShopItem {
   id: string
@@ -47,6 +47,7 @@ export const FRAME_STYLES: Record<string, string> = {
   frame_arcade: "border-violet-400 ring-2 ring-fuchsia-400/80 shadow-[0_0_22px_rgba(192,132,252,0.9)]",
   frame_blackhole: "border-purple-900 ring-2 ring-violet-600/90 shadow-[0_0_28px_rgba(124,58,237,0.9)]",
   frame_steampunk: "border-amber-700 ring-2 ring-yellow-600/60 shadow-[0_0_22px_rgba(180,83,9,0.85)]",
+  frame_samurai: "border-rose-600 ring-2 ring-red-500/80 shadow-[0_0_28px_rgba(225,29,72,0.95),0_0_12px_rgba(245,158,11,0.7)]",
   // ─── PRESSTİJ & MİTİK ÇERÇEVELER ───
   frame_rainbow: "border-rose-400 ring-4 ring-amber-400/80 shadow-[0_0_35px_rgba(251,146,60,0.9),0_0_15px_rgba(168,85,247,0.7),0_0_8px_rgba(52,211,153,0.6)]",
   frame_void: "border-violet-900 ring-4 ring-purple-700/90 shadow-[0_0_40px_rgba(88,28,135,0.95),0_0_20px_rgba(0,0,0,0.8)]",
@@ -56,7 +57,111 @@ export const FRAME_STYLES: Record<string, string> = {
   frame_infinity: "border-fuchsia-400 ring-4 ring-cyan-400/80 shadow-[0_0_45px_rgba(236,72,153,0.9),0_0_22px_rgba(34,211,238,0.8),0_0_12px_rgba(168,85,247,0.7)]"
 }
 
+export type CaseTierId = "case_rookie" | "case_operation" | "case_mythic"
+
+export interface CaseTierConfig {
+  id: CaseTierId
+  name: string
+  subtitle: string
+  price: number
+  badge: string
+  color: string
+  hexColor: string
+  glowColor: string
+  icon: string
+  odds: { blue: number; purple: number; pink: number; red: number; gold: number }
+  oddsText: { blue: string; purple: string; pink: string; red: string; gold: string }
+}
+
+export const CASE_TIERS: Record<CaseTierId, CaseTierConfig> = {
+  case_rookie: {
+    id: "case_rookie",
+    name: "Çırak Kasası",
+    subtitle: "Düşük Risk & Güvenli Başlangıç",
+    price: 75,
+    badge: "ÇIRAK",
+    color: "from-blue-500/20 via-sky-500/10 to-indigo-500/20",
+    hexColor: "#38bdf8",
+    glowColor: "rgba(56, 189, 248, 0.5)",
+    icon: "🛡️",
+    odds: { blue: 0.78, purple: 0.16, pink: 0.05, red: 0.009, gold: 0.001 },
+    oddsText: { blue: "%78", purple: "%16", pink: "%5", red: "%0.9", gold: "%0.1" }
+  },
+  case_operation: {
+    id: "case_operation",
+    name: "Operasyon Kasası",
+    subtitle: "Klasik CS2 Fiziği & Dengeli Ödüller",
+    price: 150,
+    badge: "SERİ #01",
+    color: "from-amber-500/20 via-yellow-500/15 to-orange-500/20",
+    hexColor: "#f59e0b",
+    glowColor: "rgba(245, 158, 11, 0.6)",
+    icon: "🎰",
+    odds: { blue: 0.70, purple: 0.18, pink: 0.08, red: 0.03, gold: 0.01 },
+    oddsText: { blue: "%70", purple: "%18", pink: "%8", red: "%3", gold: "%1" }
+  },
+  case_mythic: {
+    id: "case_mythic",
+    name: "Kraliyet & Mitik Kasası",
+    subtitle: "Yüksek Bahis • 3X Yüksek Altın Şansı!",
+    price: 350,
+    badge: "★ MİTİK ★",
+    color: "from-fuchsia-500/25 via-purple-500/20 to-amber-500/25",
+    hexColor: "#d946ef",
+    glowColor: "rgba(217, 70, 239, 0.7)",
+    icon: "👑",
+    odds: { blue: 0.55, purple: 0.25, pink: 0.12, red: 0.05, gold: 0.03 },
+    oddsText: { blue: "%55", purple: "%25", pink: "%12", red: "%5", gold: "%3" }
+  }
+}
+
 export const SHOP_ITEMS: ShopItem[] = [
+  // ═══════════════════════════════════════════════════════════════════
+  // ██  YENİ ULTRA PRESTİJ KOLEKSİYONLARI (SAMURAY & MELEK & KARADELİK)  ██
+  // ═══════════════════════════════════════════════════════════════════
+  {
+    id: "bundle_samurai",
+    name: "🥷 Katana Efendisi Paketi",
+    desc: "Gölge samuraylarının kadim çeliği ve ruhu! Kan Kırmızı Katana Çerçevesi, Kılıç Kesiği Efekti ve 'Gölgelerin Samurayı' unvanı bir arada.",
+    price: 8500,
+    originalPrice: 14500,
+    category: "bundle",
+    rarity: "legendary",
+    collection: "samurai",
+    glowColor: "rgba(225, 29, 72, 0.95)",
+    badgeText: "YENİ SET",
+    featured: true,
+    bundleItemIds: ["frame_samurai", "effect_katana", "title_katana_lord"]
+  },
+  {
+    id: "bundle_angelic",
+    name: "🪽 Işık Başmeleği Paketi",
+    desc: "Cennetin kutsal kapılarını aralayan ilahi parıltı! Altın Melek Çerçevesi, Kutsal Melek Halesi Efekti ve 'Kutsal Koruyucu' unvanı ile profilini aydınlat.",
+    price: 9200,
+    originalPrice: 15500,
+    category: "bundle",
+    rarity: "legendary",
+    collection: "royalty",
+    glowColor: "rgba(253, 224, 71, 0.95)",
+    badgeText: "PRESTİJ",
+    featured: true,
+    bundleItemIds: ["frame_angelic", "effect_angelic", "title_archangel"]
+  },
+  {
+    id: "bundle_blackhole",
+    name: "🕳️ Karadelik Tekilliği Paketi",
+    desc: "Olay ufkunu aşan ve ışığı bile hapseden nihai yerçekimi! Karadelik Çerçevesi, Tekillik Efekti ve 'Tekillik Efendisi' unvanı.",
+    price: 8800,
+    originalPrice: 14200,
+    category: "bundle",
+    rarity: "legendary",
+    collection: "cosmic",
+    glowColor: "rgba(124, 58, 237, 0.95)",
+    badgeText: "PRESTİJ",
+    featured: true,
+    bundleItemIds: ["frame_blackhole", "effect_blackhole", "title_singularity"]
+  },
+
   // ═══════════════════════════════════════════════════════════════════
   // ██  PRESTİJ & MİTİK KOLEKSİYONLAR — ULTRA PREMIUM PAKETLERİ  ██
   // ═══════════════════════════════════════════════════════════════════
@@ -570,6 +675,45 @@ export const SHOP_ITEMS: ShopItem[] = [
     glowColor: "rgba(250, 204, 21, 0.9)",
     badgeText: "PRESTİJ"
   },
+  {
+    id: "effect_katana",
+    name: "Katana Kesiği & Çelik Parıltısı",
+    desc: "Profilinde parıldayan keskin kılıç kesikleri, savrulan kiraz çiçekleri ve kızıl kıvılcımlar.",
+    price: 3800,
+    originalPrice: 5800,
+    category: "effect",
+    rarity: "epic",
+    collection: "samurai",
+    effectType: "effect_katana",
+    glowColor: "rgba(244, 63, 94, 0.9)",
+    badgeText: "YENİ"
+  },
+  {
+    id: "effect_angelic",
+    name: "Kutsal Melek Halesi & Altın Işık",
+    desc: "Profilinden gökyüzüne süzülen altın tüy parçacıkları ve ilahi ışık halesi.",
+    price: 4500,
+    originalPrice: 7000,
+    category: "effect",
+    rarity: "legendary",
+    collection: "royalty",
+    effectType: "effect_angelic",
+    glowColor: "rgba(253, 224, 71, 0.95)",
+    badgeText: "PRESTİJ"
+  },
+  {
+    id: "effect_blackhole",
+    name: "Karadelik & Yerçekimi Tekilliği",
+    desc: "Merkeze çekilen karanlık madde akışları ve dönen olay ufku akresyon diski.",
+    price: 4200,
+    originalPrice: 6500,
+    category: "effect",
+    rarity: "legendary",
+    collection: "cosmic",
+    effectType: "effect_blackhole",
+    glowColor: "rgba(124, 58, 237, 0.95)",
+    badgeText: "PRESTİJ"
+  },
 
   // ─── AVATAR SÜSLEMELERİ & ÇERÇEVELER (FRAMES) ───
   {
@@ -794,6 +938,19 @@ export const SHOP_ITEMS: ShopItem[] = [
     previewStyle: FRAME_STYLES.frame_neon,
     glowColor: "rgba(34, 211, 238, 0.6)"
   },
+  {
+    id: "frame_samurai",
+    name: "Kan Kırmızı Katana",
+    desc: "Gölge samuraylarının dövdüğü, kırmızı fener ışıltıları ve altın varak süslemeli çerçeve.",
+    price: 4200,
+    originalPrice: 6500,
+    category: "frame",
+    rarity: "epic",
+    collection: "samurai",
+    previewStyle: FRAME_STYLES.frame_samurai,
+    glowColor: "rgba(225, 29, 72, 0.9)",
+    badgeText: "YENİ"
+  },
 
   // ─── GÜÇLENDİRMELER & SANDIKLAR (UTILITIES & CHESTS) ───
   {
@@ -879,8 +1036,66 @@ export const SHOP_ITEMS: ShopItem[] = [
     glowColor: "rgba(14, 165, 233, 0.8)",
     badgeText: "ACİL DURUM"
   },
+  {
+    id: "booster_lucky_insurance",
+    name: "🎯 Kasa Şans Sigortası",
+    desc: "Açtığın sonraki 3 kasada mavi (teselli) çıkması durumunda harcadığın paranın %50'si anında cüzdanına iade edilir.",
+    price: 190,
+    originalPrice: 320,
+    category: "utility",
+    rarity: "rare",
+    collection: "essentials",
+    glowColor: "rgba(6, 182, 212, 0.8)",
+    badgeText: "GÜVENCE"
+  },
+  {
+    id: "badge_focus_honor",
+    name: "🌟 Odak Şeref Madalyası",
+    desc: "Profilinde parıldayan ve 1 hafta boyunca tamamlanan her görevden +50 ekstra Focus Para kazandıran onur madalyası.",
+    price: 290,
+    originalPrice: 480,
+    category: "utility",
+    rarity: "epic",
+    collection: "essentials",
+    glowColor: "rgba(245, 158, 11, 0.85)",
+    badgeText: "HAFTALIK"
+  },
 
   // ─── EFSANEVİ TOPLULUK UNVANLARI (TITLES) ───
+  {
+    id: "title_katana_lord",
+    name: "Gölgelerin Samurayı",
+    desc: "Gölge samuraylarının kadim konsantrasyonu ve disipliniyle hedeflerine ulaşanların unvanı.",
+    price: 950,
+    originalPrice: 1500,
+    category: "title",
+    rarity: "epic",
+    collection: "samurai",
+    glowColor: "rgba(225, 29, 72, 0.85)",
+    badgeText: "YENİ"
+  },
+  {
+    id: "title_archangel",
+    name: "Kutsal Koruyucu",
+    desc: "Işığın ve erdemin yolundan ayrılmayan, hedeflerini sarsılmaz inançla tamamlayanların unvanı.",
+    price: 1100,
+    originalPrice: 1800,
+    category: "title",
+    rarity: "legendary",
+    collection: "royalty",
+    glowColor: "rgba(251, 191, 36, 0.85)"
+  },
+  {
+    id: "title_singularity",
+    name: "Tekillik Efendisi",
+    desc: "Karadeliklerin merkezindeki tekillik gibi tüm dikkatini ve enerjisini tek bir noktaya odaklayan.",
+    price: 980,
+    originalPrice: 1600,
+    category: "title",
+    rarity: "legendary",
+    collection: "cosmic",
+    glowColor: "rgba(147, 51, 234, 0.85)"
+  },
   {
     id: "title_cosmic_explorer",
     name: "Kozmik Gezgin",
@@ -1080,6 +1295,8 @@ export interface Cs2CaseItem {
   bgGlow: string
   borderGlow: string
   isLoss: boolean
+  isDuplicate?: boolean
+  duplicateRefundAmount?: number
 }
 
 export const CS2_CASE_ITEMS: Cs2CaseItem[] = [
@@ -1536,34 +1753,149 @@ export function useShop() {
     [purchases]
   )
 
-  const openCs2Case = React.useCallback((): Cs2CaseItem | null => {
-    if (focusCoins < 150) {
-      showToast({ type: "error", message: "Yetersiz Focus Para! Kasa açmak için en az 150 Para gerekir." })
+  // ─── DAILY FREE GIFT SYSTEM (24H COOLDOWN) ───
+  const [canClaimDailyGift, setCanClaimDailyGift] = React.useState(false)
+  const [dailyGiftTimeRemaining, setDailyGiftTimeRemaining] = React.useState(0)
+
+  React.useEffect(() => {
+    const checkDailyGift = () => {
+      try {
+        const lastClaimStr = localStorage.getItem("focusflow_last_daily_gift")
+        const lastClaim = lastClaimStr ? parseInt(lastClaimStr, 10) : 0
+        const now = Date.now()
+        const DAY_MS = 24 * 60 * 60 * 1000
+        const elapsed = now - lastClaim
+        if (elapsed >= DAY_MS) {
+          setCanClaimDailyGift(true)
+          setDailyGiftTimeRemaining(0)
+        } else {
+          setCanClaimDailyGift(false)
+          setDailyGiftTimeRemaining(DAY_MS - elapsed)
+        }
+      } catch {
+        setCanClaimDailyGift(true)
+      }
+    }
+    checkDailyGift()
+    const interval = setInterval(checkDailyGift, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const claimDailyGift = React.useCallback(() => {
+    if (!canClaimDailyGift) return null
+    const isCoin = Math.random() > 0.25
+    const coinAmount = Math.floor(Math.random() * 31) + 20 // 20 - 50 coins
+    const now = Date.now()
+
+    try {
+      localStorage.setItem("focusflow_last_daily_gift", now.toString())
+    } catch {}
+
+    setCanClaimDailyGift(false)
+    setDailyGiftTimeRemaining(24 * 60 * 60 * 1000)
+
+    if (isCoin) {
+      updateSettings({ focusCoins: focusCoins + coinAmount })
+      showToast({
+        type: "success",
+        message: `🎁 Günlük Ücretsiz Kasa Açıldı! +${coinAmount} Focus Para kazandın!`
+      })
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
+      return { amount: coinAmount, message: `+${coinAmount} Focus Para`, type: "coin" }
+    } else {
+      updateSettings({ streakFreezes: streakFreezes + 1 })
+      showToast({
+        type: "success",
+        message: `🎁 Günlük Ücretsiz Kasa Açıldı! 1x Seri Dondurucu Kalkanı kazandın!`
+      })
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } })
+      return { amount: 1, message: "1x Seri Dondurucu", type: "freeze" }
+    }
+  }, [canClaimDailyGift, focusCoins, streakFreezes, updateSettings, showToast])
+
+  // ─── MULTI-TIER CS2 CASE OPENING ───
+  const openCs2Case = React.useCallback((tierId: CaseTierId = "case_operation"): Cs2CaseItem | null => {
+    const tier = CASE_TIERS[tierId] || CASE_TIERS.case_operation
+
+    if (focusCoins < tier.price) {
+      showToast({
+        type: "error",
+        message: `Yetersiz Focus Para! "${tier.name}" için en az ${tier.price} Para gerekir.`
+      })
       return null
     }
 
     const rand = Math.random()
     let targetRarity: Cs2Rarity
+    const odds = tier.odds
 
-    // CS2 Authenticated Odds:
-    // 70% Blue (Mostly loss), 18% Purple, 8% Pink, 3% Red, 1% Gold
-    if (rand < 0.70) {
+    if (rand < odds.blue) {
       targetRarity = "blue"
-    } else if (rand < 0.88) {
+    } else if (rand < odds.blue + odds.purple) {
       targetRarity = "purple"
-    } else if (rand < 0.96) {
+    } else if (rand < odds.blue + odds.purple + odds.pink) {
       targetRarity = "pink"
-    } else if (rand < 0.99) {
+    } else if (rand < odds.blue + odds.purple + odds.pink + odds.red) {
       targetRarity = "red"
     } else {
       targetRarity = "gold"
     }
 
     const pool = CS2_CASE_ITEMS.filter((i) => i.rarity === targetRarity)
-    const selected = pool[Math.floor(Math.random() * pool.length)]
+    
+    // Check if user already owns cosmetic
+    const isItemOwned = (item: Cs2CaseItem) => {
+      if (item.type === "frame" && item.frameId) return inventory.includes(item.frameId)
+      if (item.type === "effect" && item.effectId) return inventory.includes(item.effectId)
+      if (item.type === "title") return inventory.includes(`title_${item.id}`)
+      return false
+    }
 
-    // Apply outcomes (Base cost: 150 Focus Coins):
-    let nextCoins = focusCoins - 150
+    // Smart Duplicate Prevention: Prioritize unowned items in the target rarity tier
+    const unownedPool = pool.filter((i) => !isItemOwned(i))
+    let selected: Cs2CaseItem
+    let isDuplicate = false
+
+    if (unownedPool.length > 0) {
+      selected = unownedPool[Math.floor(Math.random() * unownedPool.length)]
+    } else {
+      // User owns all items in this rarity tier: pick random and trigger duplicate refund!
+      selected = pool[Math.floor(Math.random() * pool.length)] || CS2_CASE_ITEMS[0]
+      if (isItemOwned(selected)) {
+        isDuplicate = true
+      }
+    }
+
+    // Base cost deduction
+    let nextCoins = focusCoins - tier.price
+
+    // ── DUPLICATE REFUND PROTECTION ──
+    // If an item is duplicate, refund 60% of case cost immediately so user's luck isn't wasted!
+    let duplicateRefund = 0
+    if (isDuplicate) {
+      duplicateRefund = Math.round(tier.price * 0.6)
+      nextCoins += duplicateRefund
+      selected = {
+        ...selected,
+        isDuplicate: true,
+        duplicateRefundAmount: duplicateRefund
+      }
+      showToast({
+        type: "info",
+        message: `🔁 Yinelenen Eşya Telafisi: "${selected.name}" sende zaten var! +${duplicateRefund} Focus Para telafi ödendi.`
+      })
+    }
+
+    // Check if user has lucky insurance active
+    try {
+      const hasLuckyInsurance = localStorage.getItem("focusflow_booster_lucky_insurance_active") === "true"
+      if (hasLuckyInsurance && selected.isLoss) {
+        const refund = Math.round(tier.price * 0.5)
+        nextCoins += refund
+        showToast({ type: "info", message: `🛡️ Şans Sigortası devreye girdi! +${refund} 🪙 geri ödendi.` })
+      }
+    } catch {}
+
     let nextFreezes = streakFreezes
     let nextInventory = [...inventory]
     let nextTitle = equippedTitle
@@ -1605,9 +1937,30 @@ export function useShop() {
     return selected
   }, [focusCoins, streakFreezes, inventory, equippedTitle, equippedFrame, equippedProfileEffect, updateSettings, showToast])
 
+  // ─── QUICKSELL (EŞYAYI FOCUS PARASINA BOZDURMA) ───
+  const quicksellItem = React.useCallback((item: Cs2CaseItem, tierPrice = 150) => {
+    const coinValue = Math.round(tierPrice * 0.75)
+    let nextInventory = [...inventory]
+
+    if (item.frameId) nextInventory = nextInventory.filter((id) => id !== item.frameId)
+    if (item.effectId) nextInventory = nextInventory.filter((id) => id !== item.effectId)
+    if (item.titleName) nextInventory = nextInventory.filter((id) => id !== `title_${item.id}`)
+
+    updateSettings({
+      focusCoins: focusCoins + coinValue,
+      inventory: nextInventory
+    })
+
+    showToast({
+      type: "success",
+      message: `💰 "${item.name}" bozduruldu! +${coinValue} Focus Para hesabına eklendi.`
+    })
+    return coinValue
+  }, [focusCoins, inventory, updateSettings, showToast])
+
   // Backward-compatible openMysteryBox
   const openMysteryBox = React.useCallback((): MysteryBoxResult | null => {
-    const item = openCs2Case()
+    const item = openCs2Case("case_operation")
     if (!item) return null
     return {
       type: item.type === "coin" ? "coin" : item.type === "freeze" ? "freeze" : item.type === "booster" ? "booster" : "title",
@@ -1846,6 +2199,11 @@ export function useShop() {
     equipBundle,
     openMysteryBox,
     openCs2Case,
+    quicksellItem,
+    canClaimDailyGift,
+    claimDailyGift,
+    dailyGiftTimeRemaining,
+    caseTiers: CASE_TIERS,
     cs2CaseItems: CS2_CASE_ITEMS
   }
 }

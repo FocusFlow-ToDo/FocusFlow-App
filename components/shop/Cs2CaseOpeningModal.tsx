@@ -1,14 +1,22 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   X, Volume2, VolumeX, Sparkles, AlertCircle, RefreshCw,
   Gift, Trophy, Flame, ChevronRight, CheckCircle2, Shield,
-  Coins, Zap, Crown, Gem
+  Coins, Zap, Crown, Gem, RotateCcw
 } from "lucide-react"
 import confetti from "canvas-confetti"
-import { Cs2CaseItem, CS2_CASE_ITEMS, Cs2Rarity, FRAME_STYLES } from "@/hooks/useShop"
+import {
+  Cs2CaseItem,
+  CS2_CASE_ITEMS,
+  Cs2Rarity,
+  FRAME_STYLES,
+  CaseTierId,
+  CASE_TIERS
+} from "@/hooks/useShop"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { useSettings } from "@/hooks/useSettings"
@@ -17,25 +25,29 @@ interface Cs2CaseOpeningModalProps {
   isOpen: boolean
   onClose: () => void
   focusCoins: number
-  onOpenCase: () => Cs2CaseItem | null
+  onOpenCase: (tierId: CaseTierId) => Cs2CaseItem | null
+  onQuicksell?: (item: Cs2CaseItem, tierPrice: number) => void
 }
 
-const CARD_WIDTH = 140
+const CARD_WIDTH = 144
 const CARD_GAP = 12
-const CARD_STEP = CARD_WIDTH + CARD_GAP // 152px
-const WINNER_INDEX = 42
-const TOTAL_CARDS = 56
+const CARD_STEP = CARD_WIDTH + CARD_GAP // 156px
+const WINNER_INDEX = 40
+const TOTAL_CARDS = 55
 
-// Helper to generate randomized strip of items
-function generateRandomStrip(items: Cs2CaseItem[], count: number): Cs2CaseItem[] {
+// Helper to generate randomized strip of items based on tier odds
+function generateRandomStrip(items: Cs2CaseItem[], count: number, tierId: CaseTierId = "case_operation"): Cs2CaseItem[] {
   const strip: Cs2CaseItem[] = []
+  const tier = CASE_TIERS[tierId] || CASE_TIERS.case_operation
+  const { odds } = tier
+
   for (let i = 0; i < count; i++) {
     const pool = items.filter((it) => {
       const rand = Math.random()
-      if (rand < 0.70) return it.rarity === "blue"
-      if (rand < 0.88) return it.rarity === "purple"
-      if (rand < 0.96) return it.rarity === "pink"
-      if (rand < 0.99) return it.rarity === "red"
+      if (rand < odds.blue) return it.rarity === "blue"
+      if (rand < odds.blue + odds.purple) return it.rarity === "purple"
+      if (rand < odds.blue + odds.purple + odds.pink) return it.rarity === "pink"
+      if (rand < odds.blue + odds.purple + odds.pink + odds.red) return it.rarity === "red"
       return it.rarity === "gold"
     })
     const picked = pool[Math.floor(Math.random() * pool.length)] || items[0]
@@ -149,7 +161,8 @@ export function Cs2CaseOpeningModal({
   isOpen,
   onClose,
   focusCoins,
-  onOpenCase
+  onOpenCase,
+  onQuicksell
 }: Cs2CaseOpeningModalProps) {
   const { user } = useAuth()
   const userPhoto = user?.photoURL || null
@@ -157,10 +170,33 @@ export function Cs2CaseOpeningModal({
 
   const { settings, updateSettings } = useSettings()
 
+  // Selected Case Tier
+  const [selectedTier, setSelectedTier] = React.useState<CaseTierId>("case_operation")
+  const currentTier = CASE_TIERS[selectedTier] || CASE_TIERS.case_operation
+
   // Stage Machine: "idle" -> "cracking" -> "opening" -> "spinning" -> "result"
   const [stage, setStage] = React.useState<"idle" | "cracking" | "opening" | "spinning" | "result">("idle")
   const [reelItems, setReelItems] = React.useState<Cs2CaseItem[]>([])
   const [winnerItem, setWinnerItem] = React.useState<Cs2CaseItem | null>(null)
+  const [needleBounce, setNeedleBounce] = React.useState(false)
+  const [isQuicksold, setIsQuicksold] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Close with Escape key when idle or result
+  React.useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && (stage === "idle" || stage === "result")) {
+        onClose()
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isOpen, stage, onClose])
 
   // Check if winner cosmetic is currently equipped
   const isWinnerEquipped = React.useMemo(() => {
@@ -387,16 +423,18 @@ export function Cs2CaseOpeningModal({
     if (isOpen) {
       setStage("idle")
       setWinnerItem(null)
+      setIsQuicksold(false)
       setShowRayBurst(false)
-      const initial = generateRandomStrip(CS2_CASE_ITEMS, TOTAL_CARDS)
+      const initial = generateRandomStrip(CS2_CASE_ITEMS, TOTAL_CARDS, selectedTier)
       setReelItems(initial)
     } else {
       clearAllTimeouts()
       setStage("idle")
       setShowRayBurst(false)
+      setIsQuicksold(false)
     }
     return () => clearAllTimeouts()
-  }, [isOpen])
+  }, [isOpen, selectedTier])
 
   // Trigger spin animation when stage changes to "spinning" (Guaranteed DOM existence!)
   React.useEffect(() => {
@@ -407,15 +445,17 @@ export function Cs2CaseOpeningModal({
       if (!stripEl) return
 
       const viewportW = viewportRef.current?.offsetWidth || 700
-      const startX = -(2 * CARD_STEP + CARD_WIDTH / 2 - viewportW / 2)
+      const startX = (viewportW / 2) - (2 * CARD_STEP + CARD_WIDTH / 2)
       stripEl.style.transition = "none"
       stripEl.style.transform = `translateX(${startX}px)`
 
       // Force layout reflow
       void stripEl.offsetWidth
 
-      const jitter = Math.floor(Math.random() * 64) - 32
-      const targetX = -(WINNER_INDEX * CARD_STEP + CARD_WIDTH / 2 - viewportW / 2) + jitter
+      const centerOffset = (viewportW / 2) - (WINNER_INDEX * CARD_STEP + CARD_WIDTH / 2)
+      const maxJitter = Math.floor(CARD_WIDTH * 0.2) // ~28px safe boundary within card
+      const jitter = Math.floor(Math.random() * (maxJitter * 2)) - maxJitter
+      const targetX = centerOffset + jitter
 
       const spinDuration = 5600 // 5.6s
       stripEl.style.transition = `transform ${spinDuration}ms cubic-bezier(0.09, 0.75, 0.15, 1.0)`
@@ -436,8 +476,10 @@ export function Cs2CaseOpeningModal({
 
         if (Math.floor(currentCard) > lastCardTick) {
           lastCardTick = Math.floor(currentCard)
-          const pitch = 0.95 + Math.min(0.3, (lastCardTick / WINNER_INDEX) * 0.3)
+          const pitch = 0.95 + Math.min(0.35, (lastCardTick / WINNER_INDEX) * 0.35)
           playCs2TickSound(pitch)
+          setNeedleBounce(true)
+          setTimeout(() => setNeedleBounce(false), 45)
         }
       }, 30)
 
@@ -488,18 +530,19 @@ export function Cs2CaseOpeningModal({
   // ─── COMPLETE CS2 OPENING FLOW (INSPIRED BY KASA-AÇMA.HTML) ───
   const handleStartCaseOpening = () => {
     if (stage !== "idle" && stage !== "result") return
-    if (focusCoins < 150) {
-      alert("Yetersiz Focus Para! Kasa açmak için en az 150 Focus Parası gerekir.")
+    if (focusCoins < currentTier.price) {
+      alert(`Yetersiz Focus Para! "${currentTier.name}" açmak için en az ${currentTier.price} Focus Parası gerekir.`)
       return
     }
 
-    const winner = onOpenCase()
+    const winner = onOpenCase(selectedTier)
     if (!winner) return
 
     clearAllTimeouts()
     setWinnerItem(winner)
+    setIsQuicksold(false)
 
-    const freshStrip = generateRandomStrip(CS2_CASE_ITEMS, TOTAL_CARDS)
+    const freshStrip = generateRandomStrip(CS2_CASE_ITEMS, TOTAL_CARDS, selectedTier)
     freshStrip[WINNER_INDEX] = winner
     setReelItems(freshStrip)
 
@@ -535,10 +578,17 @@ export function Cs2CaseOpeningModal({
     return CS2_CASE_ITEMS.filter((i) => i.rarity === activeFilter)
   }, [activeFilter])
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl overflow-y-auto custom-scrollbar select-none">
+  const modalContent = (
+    <div
+      onClick={() => {
+        if (stage === "idle" || stage === "result") {
+          onClose()
+        }
+      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl overflow-y-auto custom-scrollbar select-none"
+    >
       
       {/* ─────────────────────────────────────────────────────────────
           FULL-SCREEN ROTATING SUNBURST RAYS (FROM KASA-AÇMA.HTML)
@@ -615,30 +665,47 @@ export function Cs2CaseOpeningModal({
         initial={{ opacity: 0, scale: 0.94 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.94 }}
-        className="relative w-full max-w-5xl max-h-[94vh] rounded-3xl border border-white/15 bg-[#0b0f19] shadow-2xl overflow-y-auto custom-scrollbar flex flex-col my-auto"
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-5xl max-h-[92vh] rounded-3xl border border-white/15 bg-[#0b0f19] shadow-2xl overflow-y-auto custom-scrollbar flex flex-col my-auto"
       >
         {/* Ambient Top Glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 rounded-full blur-3xl pointer-events-none transition-all duration-500"
+          style={{ backgroundColor: currentTier.glowColor }}
+        />
 
         {/* ─────────────────────────────────────────────────────────────
             HEADER BAR (FOCUSFLOW CS2 KASA AÇIMI)
         ───────────────────────────────────────────────────────────── */}
         <div className="relative z-10 px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shadow-inner">
-              <Gift className="w-5 h-5" />
+            <div
+              className="w-9 h-9 rounded-xl border flex items-center justify-center shadow-inner text-lg"
+              style={{
+                backgroundColor: `${currentTier.hexColor}20`,
+                borderColor: `${currentTier.hexColor}40`
+              }}
+            >
+              <span>{currentTier.icon}</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-white uppercase">
-                  FocusFlow Operasyon Kasası
+                  {currentTier.name}
                 </h2>
-                <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/30">
-                  SERİ #01
+                <span
+                  className="px-2 py-0.5 rounded text-[10px] font-mono font-bold border"
+                  style={{
+                    backgroundColor: `${currentTier.hexColor}20`,
+                    borderColor: `${currentTier.hexColor}40`,
+                    color: currentTier.hexColor
+                  }}
+                >
+                  {currentTier.badge}
                 </span>
               </div>
               <p className="text-xs text-zinc-400">
-                CS2 Kasa Fiziği & Gerçekçi Nadirlik Mekaniği • 150 Focus Parası
+                {currentTier.subtitle} • {currentTier.price} Focus Parası
               </p>
             </div>
           </div>
@@ -671,6 +738,64 @@ export function Cs2CaseOpeningModal({
         </div>
 
         {/* ─────────────────────────────────────────────────────────────
+            CASE TIER SELECTOR CARDS (ÇIRAK, OPERASYON, MİTİK)
+        ───────────────────────────────────────────────────────────── */}
+        <div className="relative z-10 px-4 sm:px-6 py-3 bg-black/50 border-b border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🎰 Açmak İstediğin Kasayı Seç:</span>
+            </span>
+            <span className="text-[11px] text-zinc-400 hidden sm:inline">
+              Farklı kademeler, farklı şans oranları ve ödül havuzları sunar
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {(Object.keys(CASE_TIERS) as CaseTierId[]).map((tierKey) => {
+              const t = CASE_TIERS[tierKey]
+              const isSelected = selectedTier === tierKey
+              return (
+                <button
+                  type="button"
+                  key={tierKey}
+                  onClick={() => {
+                    if (stage === "idle" || stage === "result") {
+                      setSelectedTier(tierKey)
+                    }
+                  }}
+                  disabled={stage !== "idle" && stage !== "result"}
+                  className={cn(
+                    "p-2.5 sm:p-3 rounded-2xl text-left transition-all flex items-center justify-between border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                    isSelected
+                      ? "text-white shadow-xl ring-2"
+                      : "bg-white/[0.03] text-zinc-400 border-white/10 hover:bg-white/[0.08] hover:text-white"
+                  )}
+                  style={{
+                    backgroundColor: isSelected ? `${t.hexColor}25` : undefined,
+                    borderColor: isSelected ? t.hexColor : undefined,
+                    boxShadow: isSelected ? `0 0 25px ${t.glowColor}` : undefined
+                  }}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xl sm:text-2xl shrink-0">{t.icon}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-xs sm:text-sm text-white truncate">{t.name}</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400 truncate">{t.subtitle}</div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-2">
+                    <span className="font-mono text-xs sm:text-sm font-black text-amber-300 px-2 py-0.5 rounded-lg bg-black/40 border border-amber-500/20 block">
+                      {t.price} 🪙
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ─────────────────────────────────────────────────────────────
             CENTRAL STAGE: 3D CRATE OR CS2 ROULETTE REEL
         ───────────────────────────────────────────────────────────── */}
         <div className="relative p-6 sm:p-10 bg-gradient-to-b from-[#090c14] via-[#0a0e18] to-[#0d121f] border-b border-white/10 min-h-[420px] flex flex-col items-center justify-center">
@@ -679,7 +804,7 @@ export function Cs2CaseOpeningModal({
           <motion.div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none"
             animate={{
-              backgroundColor: stage === 'cracking' ? 'rgba(245, 158, 11, 0.15)' : stage === 'opening' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(99, 102, 241, 0.08)',
+              backgroundColor: stage === 'cracking' ? 'rgba(245, 158, 11, 0.15)' : stage === 'opening' ? 'rgba(245, 158, 11, 0.3)' : currentTier.glowColor,
               scale: stage === 'opening' ? [1, 1.5] : stage === 'cracking' ? [1, 1.1, 1] : 1
             }}
             transition={{ duration: stage === 'cracking' ? 0.5 : 0.7, repeat: stage === 'cracking' ? Infinity : 0 }}
@@ -708,6 +833,7 @@ export function Cs2CaseOpeningModal({
                   stage === "idle" && "animate-hover-case",
                   stage === "cracking" && "animate-case-shudder"
                 )}
+                style={{ borderColor: currentTier.hexColor }}
               >
                 {/* Metallic texture overlay */}
                 <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(135deg,rgba(255,255,255,0.04)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.04)_50%,rgba(255,255,255,0.04)_75%,transparent_75%)] bg-[size:8px_8px] pointer-events-none" />
@@ -732,12 +858,16 @@ export function Cs2CaseOpeningModal({
                 {/* Golden Diamond Seal with "FF" Logo - Bigger */}
                 <div
                   className={cn(
-                    "absolute left-1/2 top-1/2 w-20 h-20 -ml-10 -mt-10 border-2 border-amber-400 bg-zinc-950/80 shadow-[0_0_30px_rgba(228,174,57,0.5)] flex items-center justify-center rotate-45 transition-all duration-500 z-10",
+                    "absolute left-1/2 top-1/2 w-20 h-20 -ml-10 -mt-10 border-2 bg-zinc-950/80 flex items-center justify-center rotate-45 transition-all duration-500 z-10",
                     stage === "cracking" && "shadow-[0_0_45px_rgba(228,174,57,0.7)]",
                     stage === "opening" && "opacity-0 scale-[2]"
                   )}
+                  style={{
+                    borderColor: currentTier.hexColor,
+                    boxShadow: `0 0 30px ${currentTier.glowColor}`
+                  }}
                 >
-                  <span className="-rotate-45 text-amber-400 font-black text-base tracking-widest">
+                  <span className="-rotate-45 font-black text-base tracking-widest" style={{ color: currentTier.hexColor }}>
                     FF
                   </span>
                 </div>
@@ -750,27 +880,27 @@ export function Cs2CaseOpeningModal({
               </div>
             </div>
 
-            {/* CS2 Odds Chips Row */}
+            {/* CS2 Odds Chips Row (Dynamic from currentTier) */}
             <div className="flex flex-wrap items-center justify-center gap-1.5 mb-7">
               <div className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]" />
-                <span>Askeri %70</span>
+                <span>Askeri {currentTier.oddsText.blue}</span>
               </div>
               <div className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.5)]" />
-                <span>Kısıtlı %18</span>
+                <span>Kısıtlı {currentTier.oddsText.purple}</span>
               </div>
               <div className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-pink-500 shadow-[0_0_6px_rgba(236,72,153,0.5)]" />
-                <span>Sınıflandırılmış %8</span>
+                <span>Sınıflandırılmış {currentTier.oddsText.pink}</span>
               </div>
               <div className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
-                <span>Gizli %3</span>
+                <span>Gizli {currentTier.oddsText.red}</span>
               </div>
               <div className="font-mono text-[11px] px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 flex items-center gap-1.5 font-bold shadow-[0_0_12px_rgba(245,158,11,0.15)]">
                 <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
-                <span>★ Nadir %1</span>
+                <span>★ Nadir {currentTier.oddsText.gold}</span>
               </div>
             </div>
 
@@ -778,18 +908,18 @@ export function Cs2CaseOpeningModal({
             <div className="flex items-center gap-3">
               <button
                 onClick={handleStartCaseOpening}
-                disabled={stage !== "idle" || focusCoins < 150}
+                disabled={stage !== "idle" || focusCoins < currentTier.price}
                 className={cn(
                   "relative px-10 py-4 rounded-2xl font-black text-base uppercase tracking-wider transition-all flex items-center gap-3 shadow-2xl cursor-pointer overflow-hidden",
                   stage !== "idle"
                     ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                    : focusCoins < 150
+                    : focusCoins < currentTier.price
                     ? "bg-white/10 text-zinc-500 cursor-not-allowed"
                     : "bg-gradient-to-r from-[#ffe08a] via-amber-400 to-amber-500 text-zinc-950 hover:brightness-110 hover:scale-105 active:scale-95 shadow-[0_10px_30px_-8px_rgba(228,174,57,0.6)]"
                 )}
               >
                 {/* Shimmer on button */}
-                {stage === "idle" && focusCoins >= 150 && (
+                {stage === "idle" && focusCoins >= currentTier.price && (
                   <motion.div
                     className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                     animate={{ x: ['-100%', '200%'] }}
@@ -810,7 +940,7 @@ export function Cs2CaseOpeningModal({
                   <>
                     <Gift className="w-5 h-5" />
                     <span>KASAYI AÇ</span>
-                    <span className="text-xs font-mono opacity-80">150 🪙</span>
+                    <span className="text-xs font-mono opacity-80">{currentTier.price} 🪙</span>
                   </>
                 )}
               </button>
@@ -840,8 +970,13 @@ export function Cs2CaseOpeningModal({
                 {/* Right Vignette Fade */}
                 <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-[#06080e] via-[#06080e]/80 to-transparent z-20 pointer-events-none" />
 
-                {/* CS2 ICONIC YELLOW CENTER POINTER NEEDLE */}
-                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center justify-between py-1">
+                {/* CS2 ICONIC YELLOW CENTER POINTER NEEDLE (ROCK SOLID, PERFECTLY STRAIGHT) */}
+                <div
+                  className={cn(
+                    "absolute inset-y-0 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center justify-between py-1 transition-all duration-75",
+                    needleBounce ? "brightness-125" : "brightness-100"
+                  )}
+                >
                   <div className="w-0 h-0 border-l-[9px] border-l-transparent border-r-[9px] border-r-transparent border-t-[14px] border-t-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]" />
                   <div className="w-[3px] h-full bg-gradient-to-b from-yellow-400 via-amber-300 to-yellow-400 shadow-[0_0_14px_#facc15]" />
                   <div className="w-0 h-0 border-l-[9px] border-l-transparent border-r-[9px] border-r-transparent border-b-[14px] border-b-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.9)]" />
@@ -850,7 +985,7 @@ export function Cs2CaseOpeningModal({
                 {/* Moving Strip of Cards */}
                 <div
                   ref={stripRef}
-                  className="absolute top-0 bottom-0 left-0 flex items-center px-4"
+                  className="absolute top-0 bottom-0 left-0 flex items-center"
                   style={{ willChange: "transform" }}
                 >
                   {reelItems.map((item, idx) => {
@@ -969,7 +1104,12 @@ export function Cs2CaseOpeningModal({
                         </span>
 
                         {/* Profit or Outcome Badge */}
-                        {winnerItem.isLoss ? (
+                        {winnerItem.isDuplicate ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/40 flex items-center gap-1">
+                            <RotateCcw className="w-3 h-3 text-amber-400" />
+                            <span>YİNELENEN EŞYA TELAFİSİ (%60 İADE)</span>
+                          </span>
+                        ) : winnerItem.isLoss ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] font-bold border border-blue-500/30">
                             💧 TELAFİ ÖDÜLÜ
                           </span>
@@ -991,7 +1131,22 @@ export function Cs2CaseOpeningModal({
                         {winnerItem.desc}
                       </p>
 
-                      {/* FOCUSFLOW NATIVE REWARD STATUS CARD (REPLACES WEAR / FLOAT) */}
+                      {/* DUPLICATE REFUND NOTICE BANNER */}
+                      {winnerItem.isDuplicate && (
+                        <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center justify-between gap-3 shadow-md">
+                          <div className="flex items-center gap-2">
+                            <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span>
+                              <strong>Yinelenen Eşya Telafisi:</strong> Bu eşyaya zaten sahip olduğun için harcamanın %60&apos;ı (<strong>+{winnerItem.duplicateRefundAmount} Focus Para</strong>) hesabına iade edildi!
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 font-mono font-bold shrink-0">
+                            +{winnerItem.duplicateRefundAmount} 🪙 İADE
+                          </span>
+                        </div>
+                      )}
+
+                      {/* FOCUSFLOW NATIVE REWARD STATUS CARD */}
                       <div className="pt-1 max-w-lg">
                         <div className="p-3 rounded-xl bg-black/40 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
                           {winnerItem.type === "coin" && (
@@ -1095,13 +1250,34 @@ export function Cs2CaseOpeningModal({
 
                   {/* Actions */}
                   <div className="flex flex-row md:flex-col items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+                    {/* Quicksell Option */}
+                    {onQuicksell && !isQuicksold && (winnerItem.type === "frame" || winnerItem.type === "effect" || winnerItem.type === "title") && (
+                      <button
+                        onClick={() => {
+                          onQuicksell(winnerItem, currentTier.price)
+                          setIsQuicksold(true)
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                        title="Bu eşyayı Focus Parasına dönüştür"
+                      >
+                        <Coins className="w-3.5 h-3.5" />
+                        <span>Paraya Bozdur (+{Math.round(currentTier.price * 0.75)} 🪙)</span>
+                      </button>
+                    )}
+                    {isQuicksold && (
+                      <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Bozduruldu (+{Math.round(currentTier.price * 0.75)} 🪙)</span>
+                      </div>
+                    )}
+
                     <button
                       onClick={handleStartCaseOpening}
-                      disabled={focusCoins < 150}
+                      disabled={focusCoins < currentTier.price}
                       className="flex-1 md:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-zinc-950 font-black text-xs transition-all shadow-lg hover:scale-105 active:scale-95 disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Tekrar Aç (150 🪙)</span>
+                      <span>Tekrar Aç ({currentTier.price} 🪙)</span>
                     </button>
                     <button
                       onClick={() => setStage("idle")}
@@ -1200,4 +1376,6 @@ export function Cs2CaseOpeningModal({
       </motion.div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

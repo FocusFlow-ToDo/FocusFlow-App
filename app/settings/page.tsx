@@ -68,7 +68,7 @@ export default function SettingsPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   // App Version & Auto-Updater States
-  const [appVersion, setAppVersion] = React.useState("0.1.0")
+  const [appVersion, setAppVersion] = React.useState("0.0.2")
   const [checkingUpdates, setCheckingUpdates] = React.useState(false)
 
   React.useEffect(() => {

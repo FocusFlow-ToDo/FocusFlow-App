@@ -1,6 +1,6 @@
 {
   "name": "focusflow",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "private": true,
   "main": "main.js",
   "author": "FocusFlow",
@@ -16,7 +16,10 @@
     "dist": "next build && electron-builder --win",
     "dist:dir": "next build && electron-builder --win --dir",
     "electron-pack": "next build && electron-builder --win",
-    "electron-pack:dir": "next build && electron-builder --win --dir"
+    "electron-pack:dir": "next build && electron-builder --win --dir",
+    "version-small": "node scripts/bump-version.js patch",
+    "version-medium": "node scripts/bump-version.js minor",
+    "version-large": "node scripts/bump-version.js major"
   },
   "build": {
     "appId": "com.focusflow.app",

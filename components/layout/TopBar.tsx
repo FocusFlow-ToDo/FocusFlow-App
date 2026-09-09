@@ -10,10 +10,13 @@ import { useAuth } from "@/hooks/useAuth"
 import { useSettings } from "@/hooks/useSettings"
 import { motion, AnimatePresence } from "motion/react"
 import { useNotifications, NotificationType } from "@/contexts/NotificationContext"
-import { Check, X, Trash2, AlertTriangle, Info, CheckCircle2, RotateCcw, Flame, Coins, Snowflake } from "lucide-react"
+import { Check, X, Trash2, AlertTriangle, Info, CheckCircle2, RotateCcw, Flame, Coins, Snowflake, Package, Gift } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { tr } from "date-fns/locale"
 import { StreakFreezeModal } from "@/components/focus/StreakFreezeModal"
+import { useShop, FRAME_STYLES as GLOBAL_FRAME_STYLES } from "@/hooks/useShop"
+import { InventoryModal } from "@/components/shop/InventoryModal"
+import { Cs2CaseOpeningModal } from "@/components/shop/Cs2CaseOpeningModal"
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Focus",
@@ -47,8 +50,11 @@ export function TopBar({ onSearchClick }: TopBarProps) {
   const router = useRouter()
   const { user } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotification, clearAll } = useNotifications()
+  const { inventory, focusCoins, canClaimDailyGift, openCs2Case, quicksellItem } = useShop()
   const [notifOpen, setNotifOpen] = React.useState(false)
   const [streakModalOpen, setStreakModalOpen] = React.useState(false)
+  const [inventoryOpen, setInventoryOpen] = React.useState(false)
+  const [cs2ModalOpen, setCs2ModalOpen] = React.useState(false)
   const notifRef = React.useRef<HTMLDivElement>(null)
 
   const title = PAGE_TITLES[pathname] || "FocusFlow"
@@ -163,6 +169,39 @@ export function TopBar({ onSearchClick }: TopBarProps) {
         >
           <Snowflake className="w-3.5 h-3.5 text-cyan-400" />
           <span>{settings.streakFreezes ?? 3}</span>
+        </button>
+
+        {/* Envanter & Kasalarım Navbar Button */}
+        <button
+          type="button"
+          onClick={() => setInventoryOpen(true)}
+          title="Kişisel Envanter & Kasalarım"
+          className={cn(
+            "relative group/inv flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold active:scale-95 cursor-pointer",
+            canClaimDailyGift
+              ? "bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-green-500/20 border-emerald-500/40 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:border-emerald-400"
+              : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07] text-zinc-300 hover:text-white"
+          )}
+        >
+          <Package className="w-3.5 h-3.5 text-indigo-400 group-hover/inv:text-indigo-300 transition-colors" />
+          <span>Envanter</span>
+          {canClaimDailyGift ? (
+            <span className="flex items-center gap-0.5 px-1.5 py-0.2 rounded-md bg-emerald-500/30 text-emerald-300 text-[10px] font-black border border-emerald-500/40">
+              <Gift className="w-2.5 h-2.5" />
+              <span>1 Kasa</span>
+            </span>
+          ) : inventory.length > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-md bg-white/10 text-[10px] text-zinc-400 font-mono">
+              {inventory.length}
+            </span>
+          ) : null}
+
+          {/* Hover Tooltip */}
+          <div className="absolute top-full mt-2 right-0 w-max pointer-events-none opacity-0 group-hover/inv:opacity-100 transition-opacity z-50">
+            <div className="bg-zinc-900/95 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1.5 shadow-2xl text-[11px] text-zinc-300">
+              {canClaimDailyGift ? "🎒 Envanter & 🎁 Ücretsiz kasan hazır!" : "🎒 Kişisel envanterin & kozmetiklerin"}
+            </div>
+          </div>
         </button>
 
         {/* Search */}
@@ -301,7 +340,7 @@ export function TopBar({ onSearchClick }: TopBarProps) {
                 data-no-invert
                 className={cn(
                   "w-9 h-9 rounded-xl cursor-pointer border-2 transition-all hover:scale-105 active:scale-95 relative z-10",
-                  settings.equippedFrame ? FRAME_STYLES[settings.equippedFrame] || "border-white/[0.08]" : "border-white/[0.08] hover:border-purple-500/50"
+                  settings.equippedFrame ? GLOBAL_FRAME_STYLES[settings.equippedFrame] || FRAME_STYLES[settings.equippedFrame] || "border-white/[0.08]" : "border-white/[0.08] hover:border-purple-500/50"
                 )}
               />
             </div>
@@ -309,7 +348,7 @@ export function TopBar({ onSearchClick }: TopBarProps) {
             <div
               className={cn(
                 "w-9 h-9 rounded-xl bg-gradient-to-br from-[#3B82F6] to-[#8B5CF6] flex items-center justify-center cursor-pointer border hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] transition-all hover:scale-105 active:scale-95 shadow-lg",
-                settings.equippedFrame ? FRAME_STYLES[settings.equippedFrame] || "border-white/[0.1]" : "border-white/[0.1]"
+                settings.equippedFrame ? GLOBAL_FRAME_STYLES[settings.equippedFrame] || FRAME_STYLES[settings.equippedFrame] || "border-white/[0.1]" : "border-white/[0.1]"
               )}
             >
               <span className="text-[12px] font-extrabold text-white uppercase">{initial}</span>
@@ -321,6 +360,20 @@ export function TopBar({ onSearchClick }: TopBarProps) {
       <StreakFreezeModal
         open={streakModalOpen}
         onClose={() => setStreakModalOpen(false)}
+      />
+
+      <InventoryModal
+        isOpen={inventoryOpen}
+        onClose={() => setInventoryOpen(false)}
+        onOpenCs2Modal={() => setCs2ModalOpen(true)}
+      />
+
+      <Cs2CaseOpeningModal
+        isOpen={cs2ModalOpen}
+        onClose={() => setCs2ModalOpen(false)}
+        focusCoins={focusCoins}
+        onOpenCase={openCs2Case}
+        onQuicksell={quicksellItem}
       />
     </header>
   )

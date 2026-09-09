@@ -284,33 +284,146 @@ export function StatusMilestones() {
           >
             <button
               onClick={() => updateSettings({ statusMilestonesMinimized: false })}
+              title="Detaylı İlerlemeyi, Başarımları ve Ödülleri Görmek İçin Tıkla (Genişlet)"
               className={cn(
-                "group flex items-center gap-2.5 px-3 py-1.5 rounded-full border shadow-lg transition-all active:scale-95 cursor-pointer",
-                displayMode === "all-done" ? "glass-card !border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
-                displayMode === "overdue" ? "glass-card !border-rose-500/20 bg-rose-500/10 text-rose-400" :
-                "glass-card bg-white/[0.04] text-zinc-400"
+                "group relative flex items-center gap-2 sm:gap-2.5 px-3 py-1.5 rounded-full border shadow-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] cursor-pointer",
+                displayMode === "all-done"
+                  ? "glass-card !border-emerald-500/30 bg-emerald-500/10 text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                  : displayMode === "overdue"
+                  ? "glass-card !border-rose-500/30 bg-rose-500/10 text-rose-300 shadow-[0_0_20px_rgba(244,63,94,0.15)]"
+                  : "glass-card bg-[#0e1322]/90 hover:bg-[#141b30] border-white/10 hover:border-white/20 text-zinc-300"
               )}
             >
-              {displayMode === "all-done" ? <Trophy className="w-3.5 h-3.5" /> : 
-               displayMode === "overdue" ? <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> : 
-               <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
-              
-              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                {displayMode === "all-done" ? "HARİKA!" : displayMode === "overdue" ? "GECİKMİŞ" : `%${Math.round(currentProgress)}`}
-              </span>
-              
+              {/* 1. Görev İlerlemesi (Yüzde, Sayı ve Mini İlerleme Barı) */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center text-xs shrink-0 transition-transform group-hover:scale-105",
+                  displayMode === "all-done" ? "bg-emerald-500/20 text-emerald-400" :
+                  displayMode === "overdue" ? "bg-rose-500/20 text-rose-400" :
+                  "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                )}>
+                  {displayMode === "all-done" ? <Trophy className="w-3 h-3" /> : 
+                   displayMode === "overdue" ? <AlertCircle className="w-3 h-3 animate-pulse" /> : 
+                   <CheckCircle2 className="w-3 h-3" />}
+                </div>
+                
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-white tracking-tight">
+                    {displayMode === "all-done" ? "HARİKA!" : displayMode === "overdue" ? "GECİKMİŞ" : `%${Math.round(currentProgress)}`}
+                  </span>
+                  {displayMode !== "all-done" && displayMode !== "overdue" && (
+                    <span className="text-[10px] font-bold text-zinc-400 font-mono">
+                      {currentDone}/{currentTotal} Görev
+                    </span>
+                  )}
+                </div>
+
+                {/* Mini Görev İlerleme Çubuğu */}
+                {displayMode !== "all-done" && displayMode !== "overdue" && (
+                  <div className="w-10 sm:w-12 h-1.5 bg-white/10 rounded-full overflow-hidden shrink-0 hidden xs:block">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        currentProgress === 100 
+                          ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" 
+                          : "bg-gradient-to-r from-blue-500 to-cyan-400"
+                      )}
+                      style={{ width: `${Math.min(100, Math.max(currentProgress > 0 ? 6 : 0, currentProgress))}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Seviye, XP Bar & Kalan XP */}
               {displayMode !== "all-done" && displayMode !== "overdue" && (
-                <span className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-purple-500/20 whitespace-nowrap flex items-center gap-1">
-                  SV. {gameStats.level}
-                </span>
+                <>
+                  <div className="w-px h-3.5 bg-white/10 shrink-0" />
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/15 border border-purple-500/30 shrink-0">
+                    <Sparkles className="w-2.5 h-2.5 text-purple-400 shrink-0" />
+                    <span className="text-[10px] font-black text-purple-300 whitespace-nowrap">
+                      SV. {gameStats.level}
+                    </span>
+                    {/* Mini XP Barı */}
+                    <div className="w-8 h-1 bg-black/40 rounded-full overflow-hidden shrink-0 hidden sm:block">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-400 transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.max(4, gameStats.levelPercentage))}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] font-mono font-bold text-purple-300/80 whitespace-nowrap">
+                      {gameStats.xpNeeded} XP
+                    </span>
+                  </div>
+                </>
               )}
 
-              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400/80">
-                <Coins className="w-3 h-3" />
-                {currentBalance.toLocaleString()}
+              {/* 3. Kazanılabilir Coin Potansiyeli */}
+              {potentialCoins > 0 && (
+                <>
+                  <div className="w-px h-3.5 bg-white/10 shrink-0" />
+                  <div 
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-black shrink-0"
+                    title="Bugün kalan görevleri tamamlayarak kazanabileceğin toplam Focus Parası"
+                  >
+                    <TrendingUp className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                    <span className="text-[9px] text-amber-400/70 font-semibold hidden md:inline">Kazanılabilir:</span>
+                    <span>+{potentialCoins} 🪙</span>
+                  </div>
+                </>
+              )}
+
+              {/* 4. Görev Başı Kazanç İpucu (Geniş Ekran) */}
+              <div 
+                className="hidden xl:flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.03] border border-white/[0.06] text-[9px] font-medium text-zinc-400 shrink-0"
+                title="Her görev tamamlandığında +10 Para ve +50 XP kazanırsın"
+              >
+                <span>1 Görev:</span>
+                <span className="text-amber-400 font-bold">+10 🪙</span>
+                <span className="text-emerald-400 font-bold">+50 XP</span>
+              </div>
+
+              {/* 5. Yaklaşan Rozet / Başarım */}
+              {gameStats.upcomingBadge && (
+                <>
+                  <div className="w-px h-3.5 bg-white/10 shrink-0 hidden sm:block" />
+                  <div 
+                    className={cn(
+                      "hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] shrink-0 max-w-[210px] transition-all",
+                      gameStats.upcomingBadge.urgency === 1 
+                        ? "bg-rose-500/10 border-rose-500/25 text-rose-300"
+                        : "bg-amber-500/10 border-amber-500/25 text-amber-300"
+                    )}
+                    title={`Yaklaşan Başarım: "${gameStats.upcomingBadge.name}" — ${gameStats.upcomingBadge.desc} (+${gameStats.upcomingBadge.rewardCoins || 50} 🪙 Ödül)`}
+                  >
+                    <Trophy className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                    <span className="truncate font-bold text-zinc-200">
+                      {gameStats.upcomingBadge.name}
+                    </span>
+                    <span className={cn(
+                      "text-[8px] font-black uppercase px-1 py-0.2 rounded font-mono shrink-0",
+                      gameStats.upcomingBadge.urgency === 1 ? "bg-rose-500/20 text-rose-300" : "bg-amber-500/20 text-amber-300"
+                    )}>
+                      {gameStats.upcomingBadge.remaining} Kaldı
+                    </span>
+                    <span className="text-[9px] font-bold text-amber-400 font-mono shrink-0 hidden lg:inline">
+                      +{gameStats.upcomingBadge.rewardCoins || 50} 🪙
+                    </span>
+                  </div>
+                </>
+              )}
+
+              <div className="w-px h-3.5 bg-white/10 shrink-0" />
+
+              {/* 6. Mevcut Bakiye */}
+              <span className="flex items-center gap-1 text-[11px] font-black text-amber-400 font-mono shrink-0">
+                <Coins className="w-3.5 h-3.5 text-amber-400" />
+                <span>{currentBalance.toLocaleString()}</span>
               </span>
               
-              <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+              {/* 7. Genişlet Göstergesi */}
+              <div className="w-4 h-4 rounded-full bg-white/5 flex items-center justify-center text-zinc-400 group-hover:text-white transition-colors shrink-0">
+                <ChevronDown className="w-3 h-3" />
+              </div>
             </button>
           </motion.div>
         ) : displayMode === "all-done" ? (
@@ -506,19 +619,7 @@ export function StatusMilestones() {
                     </div>
                   )}
 
-                  {/* Balance + info button */}
-                  <div className="flex items-center justify-between pt-1">
-                    <button
-                      onClick={() => setShowEconomyInfo(true)}
-                      className="text-[10px] text-zinc-600 hover:text-amber-400 font-medium flex items-center gap-1 transition-colors"
-                      title="Ekonomi Rehberi"
-                    >
-                      <Info className="w-3 h-3" /> Bakiye
-                    </button>
-                    <span className="text-[12px] font-black text-amber-400 tabular-nums flex items-center gap-1">
-                      <Coins className="w-3.5 h-3.5" /> {currentBalance.toLocaleString()}
-                    </span>
-                  </div>
+
                 </div>
               </div>
             </div>
