@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "motion/react"
-import { Sparkles, AlertCircle, CheckCircle2, Trophy, Flame, ChevronUp, ChevronDown, Star } from "lucide-react"
+import { Sparkles, AlertCircle, CheckCircle2, Trophy, Flame, ChevronUp, ChevronDown, Star, Coins, Info, X, Zap, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTasks } from "@/hooks/useTasks"
 import { useSettings } from "@/hooks/useSettings"
@@ -16,6 +17,7 @@ export function StatusMilestones() {
   const { settings, updateSettings } = useSettings()
   
   const [celebrationBadge, setCelebrationBadge] = React.useState<AchievementData | null>(null)
+  const [showEconomyInfo, setShowEconomyInfo] = React.useState(false)
   const isFirstCheckRef = React.useRef(true)
 
   React.useEffect(() => {
@@ -166,24 +168,24 @@ export function StatusMilestones() {
     let upcomingBadge = null;
     const completedTotal = completedMain + completedSub;
     const badgeChecks = [
-      { name: "İlk Kan", target: 1, current: completedTotal, suffix: "görev" },
-      { name: "Isınan Motorlar", target: 10, current: completedTotal, suffix: "görev" },
-      { name: "Acemi Savaşçı", target: 20, current: completedTotal, suffix: "görev" },
-      { name: "Deneyimli Çırak", target: 50, current: completedTotal, suffix: "görev" },
-      { name: "Yüzbaşı", target: 100, current: completedTotal, suffix: "görev" },
-      { name: "Usta Savaşçı", target: 250, current: completedTotal, suffix: "görev" },
-      { name: "Zamanın Efendisi", target: 500, current: completedTotal, suffix: "görev" },
-      { name: "Efsanevi Titan", target: 1000, current: completedTotal, suffix: "görev" },
+      { name: "İlk Kan", target: 1, current: completedTotal, suffix: "görev", rewardCoins: 50 },
+      { name: "Isınan Motorlar", target: 10, current: completedTotal, suffix: "görev", rewardCoins: 100 },
+      { name: "Acemi Savaşçı", target: 20, current: completedTotal, suffix: "görev", rewardCoins: 150 },
+      { name: "Deneyimli Çırak", target: 50, current: completedTotal, suffix: "görev", rewardCoins: 250 },
+      { name: "Yüzbaşı", target: 100, current: completedTotal, suffix: "görev", rewardCoins: 400 },
+      { name: "Usta Savaşçı", target: 250, current: completedTotal, suffix: "görev", rewardCoins: 600 },
+      { name: "Zamanın Efendisi", target: 500, current: completedTotal, suffix: "görev", rewardCoins: 1000 },
+      { name: "Efsanevi Titan", target: 1000, current: completedTotal, suffix: "görev", rewardCoins: 2000 },
 
-      { name: "Ufak Konsantrasyon", target: 30, current: focusMins, suffix: "dk" },
-      { name: "Zihin Dalışı", target: 300, current: focusMins, suffix: "dk" },
-      { name: "Derin Odak", target: 1000, current: focusMins, suffix: "dk" },
-      { name: "Zen Ustası", target: 3000, current: focusMins, suffix: "dk" },
+      { name: "Ufak Konsantrasyon", target: 30, current: focusMins, suffix: "dk", rewardCoins: 50 },
+      { name: "Zihin Dalışı", target: 300, current: focusMins, suffix: "dk", rewardCoins: 200 },
+      { name: "Derin Odak", target: 1000, current: focusMins, suffix: "dk", rewardCoins: 500 },
+      { name: "Zen Ustası", target: 3000, current: focusMins, suffix: "dk", rewardCoins: 1200 },
 
-      { name: "Parçalama Sanatı", target: 10, current: completedSub, suffix: "alt görev" },
-      { name: "Bölen ve Yöneten", target: 50, current: completedSub, suffix: "alt görev" },
-      { name: "Detaycı", target: 100, current: completedSub, suffix: "alt görev" },
-      { name: "Mikro Yönetici", target: 500, current: completedSub, suffix: "alt görev" }
+      { name: "Parçalama Sanatı", target: 10, current: completedSub, suffix: "alt görev", rewardCoins: 50 },
+      { name: "Bölen ve Yöneten", target: 50, current: completedSub, suffix: "alt görev", rewardCoins: 150 },
+      { name: "Detaycı", target: 100, current: completedSub, suffix: "alt görev", rewardCoins: 300 },
+      { name: "Mikro Yönetici", target: 500, current: completedSub, suffix: "alt görev", rewardCoins: 1200 }
     ];
 
     for (const b of badgeChecks) {
@@ -210,11 +212,11 @@ export function StatusMilestones() {
 
            let hypeMessage = "";
            if (urgency === 1) {
-             hypeMessage = `Muazzam! Başarımı açmak için son ${remaining} adım, dayan! 🔥`;
+             hypeMessage = `Son ${remaining} adım, dayan! 🔥`;
            } else if (urgency === 2) {
-             hypeMessage = `İnanılmaz yaklaştın! Sadece ${remaining} ${b.suffix} kaldı! 🚀`;
+             hypeMessage = `Sadece ${remaining} ${b.suffix} kaldı! 🚀`;
            } else {
-             hypeMessage = `Harika ilerliyorsun. ${remaining} ${b.suffix} sonra başarımı açacaksın! ⚡`;
+             hypeMessage = `${remaining} ${b.suffix} sonra başarım açılacak! ⚡`;
            }
 
            upcomingBadge = { 
@@ -224,7 +226,8 @@ export function StatusMilestones() {
                current: b.current, 
                remaining: remaining, 
                suffix: b.suffix,
-               urgency 
+               urgency,
+               rewardCoins: b.rewardCoins
            };
            break;
         }
@@ -258,8 +261,18 @@ export function StatusMilestones() {
 
   if (displayMode === "hidden" || !settings.statusMilestonesEnabled) return null
 
+  // Calculate potential coins for today
+  const todayRemaining = totalToday - todayCompleted
+  const potentialCoins = todayRemaining * 10
+  const currentBalance = settings.focusCoins ?? 100
+
+  // Progress values based on display mode
+  const currentProgress = displayMode === "week" ? weekProgress : todayProgress
+  const currentDone = displayMode === "week" ? weekCompleted : todayCompleted
+  const currentTotal = displayMode === "week" ? totalWeek : totalToday
+
   return (
-    <div className="w-full mb-6 relative group">
+    <div className="w-full mb-4 relative group">
       <AnimatePresence mode="wait">
         {settings.statusMilestonesMinimized ? (
           <motion.div
@@ -269,35 +282,36 @@ export function StatusMilestones() {
             exit={{ opacity: 0, scale: 0.95, y: -4 }}
             className="w-full flex justify-end px-1"
           >
-            <div className="relative flex items-center">
-              <button
-                onClick={() => updateSettings({ statusMilestonesMinimized: false })}
-                className={cn(
-                  "group flex items-center gap-2.5 px-3 py-1.5 rounded-full border shadow-lg transition-all active:scale-95 cursor-pointer relative",
-                  displayMode === "all-done" ? "glass-card !border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
-                  displayMode === "overdue" ? "glass-card !border-rose-500/20 bg-rose-500/10 text-rose-400" :
-                  "glass-card bg-white/[0.04] text-zinc-400"
-                )}
-              >
-                {displayMode === "all-done" ? <Trophy className="w-3.5 h-3.5" /> : 
-                 displayMode === "overdue" ? <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> : 
-                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
-                
-                <span className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
-                    {displayMode === "all-done" ? "HARİKA!" : displayMode === "overdue" ? "GECİKMİŞ" : `%${Math.round(displayMode === "week" ? weekProgress : todayProgress)}`}
-                  </span>
-                  
-                  {displayMode !== "all-done" && displayMode !== "overdue" && (
-                     <span className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-purple-500/20 whitespace-nowrap drop-shadow-sm flex items-center gap-1">
-                       SV. {gameStats.level}
-                     </span>
-                  )}
+            <button
+              onClick={() => updateSettings({ statusMilestonesMinimized: false })}
+              className={cn(
+                "group flex items-center gap-2.5 px-3 py-1.5 rounded-full border shadow-lg transition-all active:scale-95 cursor-pointer",
+                displayMode === "all-done" ? "glass-card !border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
+                displayMode === "overdue" ? "glass-card !border-rose-500/20 bg-rose-500/10 text-rose-400" :
+                "glass-card bg-white/[0.04] text-zinc-400"
+              )}
+            >
+              {displayMode === "all-done" ? <Trophy className="w-3.5 h-3.5" /> : 
+               displayMode === "overdue" ? <AlertCircle className="w-3.5 h-3.5 animate-pulse" /> : 
+               <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />}
+              
+              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                {displayMode === "all-done" ? "HARİKA!" : displayMode === "overdue" ? "GECİKMİŞ" : `%${Math.round(currentProgress)}`}
+              </span>
+              
+              {displayMode !== "all-done" && displayMode !== "overdue" && (
+                <span className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 text-purple-300 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-purple-500/20 whitespace-nowrap flex items-center gap-1">
+                  SV. {gameStats.level}
                 </span>
-                
-                <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity ml-1" />
-              </button>
-            </div>
+              )}
+
+              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400/80">
+                <Coins className="w-3 h-3" />
+                {currentBalance.toLocaleString()}
+              </span>
+              
+              <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+            </button>
           </motion.div>
         ) : displayMode === "all-done" ? (
           <motion.div
@@ -305,27 +319,31 @@ export function StatusMilestones() {
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className="glass-card !border-emerald-500/15 bg-emerald-500/[0.02] p-3 px-4 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-emerald-500/5 relative"
+            className="glass-card !border-emerald-500/15 bg-emerald-500/[0.03] p-4 rounded-2xl shadow-lg shadow-emerald-500/5 relative overflow-hidden"
           >
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400">
-              <Trophy className="w-5 h-5 shadow-sm" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-emerald-400 font-black tracking-tight text-[13px] uppercase">
-                {isWeekAllDone ? "HAFTANIN KAHRAMANI!" : "GÜNÜN KAHRAMANI!"}
-              </h3>
-              <p className="text-zinc-500 text-[11px] font-medium truncate">
-                {isWeekAllDone ? "Bu haftanın tüm hedeflerini tamamladın!" : "Günün tüm hedeflerini tamamladın!"}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-4 h-4 text-emerald-500/40" />
-              <button 
-                onClick={() => updateSettings({ statusMilestonesMinimized: true })} 
-                className="p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
+            {/* Subtle glow */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 blur-[60px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+            
+            <button 
+              onClick={() => updateSettings({ statusMilestonesMinimized: true })} 
+              className="absolute top-3 right-3 p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100 z-10"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-emerald-400 font-black tracking-tight text-sm uppercase">
+                  {isWeekAllDone ? "HAFTANIN KAHRAMANI!" : "GÜNÜN KAHRAMANI!"}
+                </h3>
+                <p className="text-zinc-500 text-xs font-medium mt-0.5">
+                  {isWeekAllDone ? "Bu haftanın tüm hedeflerini tamamladın!" : "Günün tüm hedeflerini tamamladın!"}
+                </p>
+              </div>
+              <Sparkles className="w-5 h-5 text-emerald-500/40" />
             </div>
           </motion.div>
         ) : displayMode === "overdue" ? (
@@ -334,298 +352,363 @@ export function StatusMilestones() {
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className="glass-card !border-rose-500/15 bg-rose-500/[0.02] p-3 px-4 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-rose-500/5 relative"
+            className="glass-card !border-rose-500/15 bg-rose-500/[0.03] p-4 rounded-2xl shadow-lg shadow-rose-500/5 relative overflow-hidden"
           >
-            <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center text-rose-400">
-              <AlertCircle className="w-5 h-5 shadow-sm" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-rose-400 font-black tracking-tight text-[13px] uppercase">GECİKMİŞ GÖREVLER</h3>
-              <p className="text-zinc-500 text-[11px] font-medium truncate">Tamamlanması gereken <span className="text-rose-400 font-bold">{overdueCount}</span> gecikmiş göreviniz var.</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Flame className="w-4 h-4 text-rose-500/40 animate-pulse" />
-              <button 
-                onClick={() => updateSettings({ statusMilestonesMinimized: true })} 
-                className="p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-rose-500/10 blur-[60px] -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+            
+            <button 
+              onClick={() => updateSettings({ statusMilestonesMinimized: true })} 
+              className="absolute top-3 right-3 p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover:opacity-100 z-10"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/15 flex items-center justify-center text-rose-400 border border-rose-500/20">
+                <AlertCircle className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-rose-400 font-black tracking-tight text-sm uppercase">GECİKMİŞ GÖREVLER</h3>
+                <p className="text-zinc-500 text-xs font-medium mt-0.5">
+                  Tamamlanması gereken <span className="text-rose-400 font-bold">{overdueCount}</span> gecikmiş görev var.
+                </p>
+              </div>
+              <Flame className="w-5 h-5 text-rose-500/40 animate-pulse" />
             </div>
           </motion.div>
-        ) : displayMode === "today" || displayMode === "week" ? (
+        ) : (displayMode === "today" || displayMode === "week") ? (
+          /* ═══════════════════════════════════════════════════════════════
+             UNIFIED PROGRESS CARD — Single card with everything
+             ═══════════════════════════════════════════════════════════════ */
           <motion.div
-            key={`progress-${displayMode}`}
+            key={`unified-${displayMode}`}
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
             className={cn(
-              "p-3 px-4 rounded-2xl space-y-2.5 relative group/progress transition-colors duration-500",
+              "rounded-2xl relative group/card overflow-hidden transition-colors duration-500",
               (displayMode === "week" && isTodayAllDone)
-                ? "glass-card !border-emerald-500/20 bg-emerald-500/[0.04] shadow-[0_0_20px_rgba(16,185,129,0.06)]"
+                ? "glass-card !border-emerald-500/20 shadow-[0_0_25px_rgba(16,185,129,0.08)]"
                 : "glass-card"
             )}
           >
             <button 
               onClick={() => updateSettings({ statusMilestonesMinimized: true })} 
-              className="absolute top-2 right-2 p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover/progress:opacity-100 z-10"
+              className="absolute top-3 right-3 p-1 rounded-lg text-zinc-700 hover:text-zinc-400 hover:bg-white/[0.05] transition-all opacity-0 group-hover/card:opacity-100 z-20"
             >
-              <ChevronUp className="w-3 h-3" />
+              <ChevronUp className="w-3.5 h-3.5" />
             </button>
-            <div className="flex items-center justify-between gap-4 pr-6">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-9 h-9 rounded-xl flex items-center justify-center border shadow-sm",
-                  displayMode === "week" 
-                    ? (isTodayAllDone ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20") 
-                    : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                )}>
-                  <CheckCircle2 className="w-5 h-5 drop-shadow-sm" />
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <h3 className="text-zinc-200 font-black tracking-widest text-[11px] uppercase">
-                      {displayMode === "week" ? "HAFTALIK İLERLEME" : "GÜNLÜK İLERLEME"}
-                    </h3>
-                    {displayMode === "week" && isTodayAllDone && (
-                      <span className="text-[8px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-emerald-500/20 shadow-sm">
-                        BUGÜN BİTTİ <span className="ml-0.5">✅</span>
-                      </span>
-                    )}
+
+            {/* ── Main Content: Two-column layout ── */}
+            <div className="flex">
+              {/* LEFT COLUMN: Progress info */}
+              <div className="flex-1 p-4 pr-3">
+                {/* Header row */}
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center border",
+                    displayMode === "week" 
+                      ? (isTodayAllDone ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-purple-500/10 text-purple-400 border-purple-500/20") 
+                      : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                  )}>
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
-                      {displayMode === "week" ? `${weekCompleted}/${totalWeek}` : `${todayCompleted}/${totalToday}`} GÖREV
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-zinc-200 font-black tracking-widest text-[11px] uppercase">
+                        {displayMode === "week" ? "HAFTALIK İLERLEME" : "GÜNLÜK İLERLEME"}
+                      </h3>
+                      {displayMode === "week" && isTodayAllDone && (
+                        <span className="text-[8px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-widest border border-emerald-500/20">
+                          BUGÜN ✅
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mt-0.5">
+                      {currentDone}/{currentTotal} GÖREV
                     </p>
                   </div>
                 </div>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className={cn(
-                  "text-[20px] font-black tabular-nums transition-colors drop-shadow-sm",
-                  displayMode === "week" 
-                    ? (isTodayAllDone ? "text-emerald-400" : "text-purple-400")
-                    : "text-blue-400"
-                )}>
-                  %{Math.round(displayMode === "week" ? weekProgress : todayProgress)}
-                </span>
-                <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">
-                  1 GÖREV = <span className="text-emerald-400 font-black drop-shadow-sm">+50 XP</span>
-                </span>
-              </div>
-            </div>
-            
-            <div className="relative w-full py-1.5 px-1">
-              {/* Background Track */}
-              <div className="absolute top-1/2 -translate-y-1/2 left-1 right-1 h-1.5 bg-white/[0.04] rounded-full border border-white/[0.02]" />
-              
-              {/* Stage Nodes */}
-              {(() => {
-                const total = displayMode === "week" ? totalWeek : totalToday;
-                const completed = displayMode === "week" ? weekCompleted : todayCompleted;
-                if (total > 0 && total <= 50) {
-                  return Array.from({ length: total }).map((_, i) => {
-                    const isCompleted = i < completed;
-                    const leftPct = ((i + 1) / total) * 100;
-                    return (
-                      <div 
-                        key={i}
-                        className={cn(
-                          "absolute top-1/2 -translate-y-1/2 rounded-full z-15 transition-all duration-500 ring-2 ring-[#09090b] flex items-center justify-center",
-                          isCompleted 
-                            ? "w-3.5 h-3.5 sm:w-4 sm:h-4 bg-emerald-600 shadow-[0_0_8px_rgba(52,211,153,0.6)]" 
-                            : "w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white/10"
-                        )}
-                        style={{ left: `calc(${leftPct}% - ${isCompleted ? 8 : 4}px)` }}
-                      >
-                        {isCompleted && <span className="text-[7px] sm:text-[9px] font-black text-emerald-100/90 leading-none drop-shadow-sm mt-[1px]">✓</span>}
-                      </div>
-                    )
-                  })
-                }
-                return null;
-              })()}
 
-              {/* Foreground Filled Track */}
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${displayMode === "week" ? weekProgress : todayProgress}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
-                className={cn(
-                  "relative h-1.5 rounded-full transition-all duration-500 flex items-center z-10",
-                  "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-                )}
-              >
-                {/* Thumb / Knob */}
-                <div 
-                  className={cn(
-                     "absolute right-0 translate-x-1/2 w-4 h-4 rounded-full flex items-center justify-center border-[2px] border-[#09090b] shadow-md z-20",
-                     (displayMode === "week" ? weekProgress : todayProgress) === 100 ? "bg-emerald-400" 
-                     : (displayMode === "week" ? (isTodayAllDone ? "bg-emerald-400" : "bg-purple-400") : "bg-blue-400")
-                  )}
-                >
-                  {(displayMode === "week" ? weekProgress : todayProgress) === 100 ? (
-                    <span className="text-[10px]">✅</span>
-                  ) : (
-                     <div className="w-1.5 h-1.5 bg-[#09090b] rounded-full opacity-60" />
-                  )}
+                {/* Progress bar */}
+                <div className="relative w-full h-2 bg-white/[0.04] rounded-full border border-white/[0.03] overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${currentProgress}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    className={cn(
+                      "h-full rounded-full",
+                      currentProgress === 100 
+                        ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                        : displayMode === "week"
+                          ? "bg-gradient-to-r from-purple-500 to-indigo-400 shadow-[0_0_8px_rgba(168,85,247,0.3)]"
+                          : "bg-gradient-to-r from-blue-500 to-cyan-400 shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                    )}
+                  />
                 </div>
-              </motion.div>
-            </div>
 
-            {/* Minimal Gamification Addon */}
-            <div className="pt-2 mt-1 border-t border-white/[0.04]">
-              <div className="flex items-center gap-3 w-full px-1 opacity-60 hover:opacity-100 transition-opacity duration-300">
-                 <div className="flex items-center gap-1.5 min-w-max">
-                   <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                   <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest drop-shadow-sm">SV. {gameStats.level}</span>
-                 </div>
-                 
-                 {/* Ultra-thin Bar inline */}
-                 <div className="relative flex-1 py-1">
-                   <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-0.5 bg-white/[0.06] rounded-full" />
-                   <motion.div
-                     initial={{ width: 0 }}
-                     animate={{ width: `${gameStats.levelPercentage}%` }}
-                     transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
-                     className="relative h-0.5 rounded-full bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 shadow-[0_0_8px_rgba(168,85,247,0.4)] flex items-center z-10"
-                   >
-                     {/* Tiny Gamification Thumb */}
-                     <div className="absolute right-0 translate-x-1/2 w-2 h-2 bg-purple-300 rounded-full border border-[#09090b] shadow-[0_0_10px_rgba(168,85,247,0.6)] z-20" />
-                   </motion.div>
-                 </div>
-                 
-                 <span className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase text-right max-w-[80px] truncate min-w-[50px]">
-                   {gameStats.xpNeeded} XP
-                 </span>
+                {/* Below bar: Level + XP */}
+                <div className="flex items-center gap-2 mt-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-[11px] font-black text-purple-400 uppercase tracking-widest">SV. {gameStats.level}</span>
+                  </div>
+                  
+                  <div className="relative flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${gameStats.levelPercentage}%` }}
+                      transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                      className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 shadow-[0_0_6px_rgba(168,85,247,0.4)]"
+                    />
+                  </div>
+                  
+                  <span className="text-[10px] font-bold text-zinc-500 tracking-wider uppercase whitespace-nowrap">
+                    {gameStats.xpNeeded} XP
+                  </span>
+                </div>
+              </div>
+
+              {/* DIVIDER */}
+              <div className="w-px bg-white/[0.06] my-3" />
+
+              {/* RIGHT COLUMN: Economy & Rewards */}
+              <div className="w-[180px] p-4 pl-3 flex flex-col justify-between">
+                {/* Percentage display */}
+                <div className="text-right mb-2">
+                  <span className={cn(
+                    "text-3xl font-black tabular-nums leading-none tracking-tight",
+                    displayMode === "week" 
+                      ? (isTodayAllDone ? "text-emerald-400" : "text-purple-400")
+                      : "text-blue-400"
+                  )}>
+                    %{Math.round(currentProgress)}
+                  </span>
+                </div>
+
+                {/* Coin rewards info */}
+                <div className="space-y-1.5">
+                  {/* Per task reward */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-600 font-medium">1 Görev</span>
+                    <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                      🪙 +10 <span className="text-emerald-400">+50 XP</span>
+                    </span>
+                  </div>
+
+                  {/* Today's potential earnings */}
+                  {potentialCoins > 0 && (
+                    <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                      <span className="text-[10px] text-amber-400/70 font-medium flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3" /> Kazanılabilir
+                      </span>
+                      <span className="text-[11px] font-black text-amber-400">🪙 +{potentialCoins}</span>
+                    </div>
+                  )}
+
+                  {/* Balance + info button */}
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      onClick={() => setShowEconomyInfo(true)}
+                      className="text-[10px] text-zinc-600 hover:text-amber-400 font-medium flex items-center gap-1 transition-colors"
+                      title="Ekonomi Rehberi"
+                    >
+                      <Info className="w-3 h-3" /> Bakiye
+                    </button>
+                    <span className="text-[12px] font-black text-amber-400 tabular-nums flex items-center gap-1">
+                      <Coins className="w-3.5 h-3.5" /> {currentBalance.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      
-      <AnimatePresence>
-        {/* Dynamic Upcoming Achievement Alert (Only shown if expanded and close to badge) */}
-        {displayMode !== "hidden" && displayMode !== "minimized" && gameStats.upcomingBadge && !settings.statusMilestonesMinimized && (
-           (() => {
-             const urg = gameStats.upcomingBadge.urgency || 3;
-             const theme = urg === 1 ? {
-                bgGrad: "from-rose-500/10 via-red-500/5 to-rose-500/10",
-                border: "border-rose-500/40 shadow-[0_0_30px_rgba(225,29,72,0.25)]",
-                glow1: "bg-rose-500/25", glow2: "bg-red-500/15",
-                iconBg: "from-rose-400 to-red-600 shadow-[0_0_15px_rgba(225,29,72,0.5)]",
-                iconInner: "text-rose-400 drop-shadow-[0_0_8px_rgba(225,29,72,0.8)]",
-                iconInnerBg: "bg-rose-500/10",
-                tagBg: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-                titleText: "from-rose-200 to-red-500",
-                descText: "text-rose-200/80",
-                barGrad: "from-rose-600 to-red-400",
-                pctText: "text-rose-400 drop-shadow-[0_0_10px_rgba(225,29,72,0.4)]",
-                pctSub: "text-rose-500/60 border-l border-rose-500/10",
-                pulse: "animate-pulse",
-                sparkle: "text-rose-200"
-             } : urg === 2 ? {
-                bgGrad: "from-amber-500/10 via-yellow-500/5 to-amber-500/10",
-                border: "border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.15)]",
-                glow1: "bg-amber-500/20", glow2: "bg-yellow-500/10",
-                iconBg: "from-amber-400 to-orange-600 shadow-[0_0_15px_rgba(245,158,11,0.4)]",
-                iconInner: "text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]",
-                iconInnerBg: "bg-amber-500/10",
-                tagBg: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                titleText: "from-amber-200 to-yellow-500",
-                descText: "text-amber-200/80",
-                barGrad: "from-amber-600 to-yellow-400",
-                pctText: "text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]",
-                pctSub: "text-amber-500/60 border-l border-amber-500/10",
-                pulse: "",
-                sparkle: "text-yellow-300"
-             } : {
-                bgGrad: "from-blue-500/10 via-indigo-500/5 to-blue-500/10",
-                border: "border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]",
-                glow1: "bg-blue-500/20", glow2: "bg-indigo-500/10",
-                iconBg: "from-blue-400 to-indigo-600 shadow-[0_0_15px_rgba(59,130,246,0.4)]",
-                iconInner: "text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.8)]",
-                iconInnerBg: "bg-blue-500/10",
-                tagBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-                titleText: "from-blue-200 to-indigo-400",
-                descText: "text-blue-200/80",
-                barGrad: "from-blue-600 to-indigo-400",
-                pctText: "text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]",
-                pctSub: "text-blue-500/60 border-l border-blue-500/10",
-                pulse: "",
-                sparkle: "text-blue-200"
-             };
 
-             return (
-               <motion.div
-                 key="upcoming-badge-alert"
-                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                 className="mt-3 relative group/badge transition-all"
-               >
-                  {/* Flashy Animated Background & Borders */}
-                  <div className={cn("absolute inset-0 rounded-2xl bg-gradient-to-r", theme.bgGrad, theme.pulse)} />
-                  <div className={cn("absolute inset-0 rounded-2xl border-[1px] pointer-events-none transition-colors", theme.border)} />
-                  
-                  <div className="relative p-3.5 px-4 rounded-2xl flex items-center justify-between gap-4 w-full glass-card bg-[#09090b]/60 backdrop-blur-xl z-10 overflow-hidden">
-                     {/* Internal glows */}
-                     <div className={cn("absolute top-0 right-0 w-32 h-32 blur-[40px] -translate-y-1/2 translate-x-1/2 pointer-events-none transition-colors", theme.glow1)} />
-                     <div className={cn("absolute bottom-0 left-0 w-24 h-24 blur-[30px] translate-y-1/2 -translate-x-1/2 pointer-events-none transition-colors", theme.glow2)} />
+            {/* ── Upcoming Badge (Integrated as bottom section) ── */}
+            <AnimatePresence>
+              {gameStats.upcomingBadge && (() => {
+                const badge = gameStats.upcomingBadge;
+                const badgePct = Math.floor((badge.current / badge.target) * 100);
+                const urg = badge.urgency || 3;
+                
+                const colors = urg === 1 ? {
+                  accent: "text-rose-400", bg: "bg-rose-500/5", border: "border-rose-500/15",
+                  bar: "from-rose-500 to-red-400", tag: "bg-rose-500/15 text-rose-400 border-rose-500/25",
+                  glow: "shadow-[inset_0_1px_0_rgba(225,29,72,0.1)]"
+                } : urg === 2 ? {
+                  accent: "text-amber-400", bg: "bg-amber-500/5", border: "border-amber-500/15",
+                  bar: "from-amber-500 to-yellow-400", tag: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+                  glow: "shadow-[inset_0_1px_0_rgba(245,158,11,0.1)]"
+                } : {
+                  accent: "text-blue-400", bg: "bg-blue-500/5", border: "border-blue-500/15",
+                  bar: "from-blue-500 to-indigo-400", tag: "bg-blue-500/15 text-blue-400 border-blue-500/25",
+                  glow: ""
+                };
 
-                     <div className="flex items-center gap-4 w-full relative z-20">
-                        {/* Glowing Trophy Icon */}
-                        <div className={cn("w-11 h-11 rounded-[14px] p-[1.5px] flex-shrink-0 relative bg-gradient-to-br transition-all", theme.iconBg)}>
-                           <div className="w-full h-full bg-[#0a0a0f] rounded-[12px] flex items-center justify-center relative overflow-hidden">
-                               <div className={cn("absolute inset-0 transition-colors", theme.iconInnerBg)} />
-                               <Trophy className={cn("w-5 h-5 transition-colors", theme.iconInner)} />
-                           </div>
-                           <Sparkles className={cn("w-3 h-3 absolute -top-1 -right-1 animate-pulse transition-colors", theme.sparkle)} />
+                return (
+                  <motion.div
+                    key="badge-section"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className={cn("border-t border-white/[0.05]", colors.glow)}
+                  >
+                    <div className={cn("px-4 py-3 flex items-center gap-3", colors.bg)}>
+                      {/* Trophy */}
+                      <div className="w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center border border-white/[0.06] flex-shrink-0">
+                        <Trophy className={cn("w-4 h-4", colors.accent)} />
+                      </div>
+
+                      {/* Badge info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest border flex-shrink-0", colors.tag, urg === 1 ? "animate-pulse" : "")}>
+                            {badge.remaining} KALDI
+                          </span>
+                          <span className={cn("text-[12px] font-black tracking-wide truncate", colors.accent)}>
+                            "{badge.name}"
+                          </span>
+                          <span className="text-zinc-600 text-[10px]">·</span>
+                          <span className="text-[10px] font-medium text-zinc-500 truncate">{badge.desc}</span>
                         </div>
                         
-                        <div className="flex-1 flex flex-col justify-center min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className={cn("text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-widest border transition-colors", theme.tagBg)}>
-                              {gameStats.upcomingBadge.remaining} KALDI!
-                            </span>
-                            <h4 className={cn("text-[13px] font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r truncate drop-shadow-sm transition-all", theme.titleText)}>
-                              "{gameStats.upcomingBadge.name}"
-                            </h4>
+                        {/* Mini progress */}
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex-1 h-1 bg-black/30 rounded-full overflow-hidden">
+                            <motion.div 
+                              className={cn("h-full rounded-full bg-gradient-to-r", colors.bar)}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${badgePct}%` }}
+                              transition={{ duration: 1.5, delay: 0.3, ease: "easeOut" }}
+                            />
                           </div>
-                          
-                          <p className={cn("text-[10px] font-medium mt-0.5 truncate tracking-wide drop-shadow-sm transition-colors", theme.descText)}>
-                             {gameStats.upcomingBadge.desc}
-                          </p>
-                          
-                          {/* Mini Progress Bar for Badge */}
-                          <div className="w-full h-1 bg-black/50 rounded-full mt-2 relative border border-white/[0.03] overflow-hidden">
-                             <motion.div 
-                               className={cn("absolute top-0 left-0 bottom-0 rounded-full bg-gradient-to-r transition-all", theme.barGrad)}
-                               initial={{ width: 0 }}
-                               animate={{ width: `${(gameStats.upcomingBadge.current / gameStats.upcomingBadge.target) * 100}%` }}
-                               transition={{ duration: 1.5, delay: 0.2, ease: "easeOut" }}
-                             />
-                          </div>
+                          <span className={cn("text-[10px] font-black tabular-nums", colors.accent)}>%{badgePct}</span>
                         </div>
+                      </div>
 
-                        <div className={cn("flex flex-col items-end flex-shrink-0 pl-3 transition-colors", theme.pctSub)}>
-                           <span className={cn("text-[16px] font-black tabular-nums leading-none tracking-tighter transition-colors", theme.pctText)}>
-                             %{Math.floor((gameStats.upcomingBadge.current / gameStats.upcomingBadge.target) * 100)}
-                           </span>
-                           <span className="text-[8px] font-black tracking-[0.15em] uppercase mt-1">YOLUNDA</span>
+                      {/* Reward */}
+                      <div className="flex-shrink-0 pl-2 text-right">
+                        <div className="text-[10px] text-zinc-600 font-medium">Ödül</div>
+                        <div className="text-[12px] font-black text-amber-400 flex items-center gap-0.5">
+                          🪙 +{badge.rewardCoins || 50}
                         </div>
-                     </div>
-                  </div>
-               </motion.div>
-             )
-           })()
-        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </AnimatePresence>
+          </motion.div>
+        ) : null}
       </AnimatePresence>
       
       <AchievementModal 
          badge={celebrationBadge} 
          onClose={() => setCelebrationBadge(null)} 
       />
+
+      {/* ═══ Economy Guide Modal ═══ */}
+      {showEconomyInfo && createPortal(
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowEconomyInfo(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 400 }}
+            onClick={e => e.stopPropagation()}
+            className="w-[400px] max-h-[80vh] glass-card !border-amber-500/15 rounded-2xl overflow-hidden shadow-2xl shadow-amber-500/10"
+          >
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 border-b border-white/[0.06] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-600/20 flex items-center justify-center border border-amber-500/20">
+                  <Coins className="w-4.5 h-4.5 text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-black text-zinc-100 tracking-tight">Ekonomi & Kazanç Rehberi</h2>
+                  <p className="text-[11px] text-zinc-500 font-medium">Focus Para nasıl kazanılır & harcanır</p>
+                </div>
+              </div>
+              <button onClick={() => setShowEconomyInfo(false)} className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.06] transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 py-4 space-y-4 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {/* Current Balance */}
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-600/5 border border-amber-500/15">
+                <span className="text-[12px] font-bold text-zinc-400 uppercase tracking-wider">Mevcut Bakiye</span>
+                <span className="text-xl font-black text-amber-400 tabular-nums flex items-center gap-1.5">
+                  🪙 {currentBalance.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Earning Sources */}
+              <div>
+                <h3 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5" /> Kazanç Kaynakları
+                </h3>
+                <div className="space-y-2">
+                  {[
+                    { label: "Görev Tamamlama", amount: "+10", icon: "✅", desc: "Her tamamlanan görev" },
+                    { label: "Alt Görev", amount: "+2", icon: "📋", desc: "Her tamamlanan alt görev" },
+                    { label: "25dk Odak Süresi", amount: "+15", icon: "🎯", desc: "Her 25 dakikalık odak oturumu" },
+                    { label: "Başarım Ödülleri", amount: "+50 ~ +25.000", icon: "🏆", desc: "Başarım açıldığında (zorluk seviyesine göre)" },
+                    { label: "Seri Bonusu", amount: "+60 ~ +25.000", icon: "🔥", desc: "Günlük seri milestone'larında" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-colors">
+                      <span className="text-base leading-none">{item.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] font-bold text-zinc-300 block">{item.label}</span>
+                        <span className="text-[9px] text-zinc-600 font-medium">{item.desc}</span>
+                      </div>
+                      <span className="text-[11px] font-black text-amber-400 whitespace-nowrap">🪙 {item.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Spending */}
+              <div>
+                <h3 className="text-[11px] font-black text-rose-400 uppercase tracking-widest mb-2.5 flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5" /> Harcama Alanları
+                </h3>
+                <div className="space-y-2">
+                  {[
+                    { label: "Mağaza Ürünleri", desc: "Çerçeve, unvan, profil efektleri", icon: "🛒" },
+                    { label: "Kasa Açma", desc: "CS2 tarzı kasa açma (150 Para)", icon: "📦" },
+                    { label: "Seri Dondurma", desc: "Günlük seriyi korumak için", icon: "🧊" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                      <span className="text-base leading-none">{item.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] font-bold text-zinc-300 block">{item.label}</span>
+                        <span className="text-[9px] text-zinc-600 font-medium">{item.desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tip */}
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                <p className="text-[10px] text-blue-300/70 font-medium leading-relaxed">
+                  Focus Para, görevlerini tamamlayarak, odak süresi harcayarak ve başarım açarak kazanılır. 
+                  Mağazadan özel kozmetik ürünler satın almak için kullanabilirsin!
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>,
+        document.body
+      )}
     </div>
   )
 }

@@ -13,7 +13,7 @@ import { useToast } from "@/contexts/ToastContext"
 import { useRouter } from "next/navigation"
 import { TaskCard } from "@/components/tasks/TaskCard"
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer"
-import { TaskInput } from "@/components/focus/TaskInput"
+import { TaskInput, openGlobalTaskInput } from "@/components/focus/TaskInput"
 import { useCategories } from "@/hooks/useCategories"
 import type { Task } from "@/types"
 import { isBefore, isToday, isTomorrow, isThisWeek, startOfDay, addDays, startOfWeek, isSameDay, format } from "date-fns"
@@ -367,7 +367,7 @@ export default function TasksPage() {
                     </div>
                     <h3 className="text-zinc-300 font-bold text-base mb-2">{hasActiveFilters ? "Sonuç bulunamadı" : "Henüz görev yok"}</h3>
                     <p className="text-[13px] text-zinc-600 max-w-xs leading-relaxed">{hasActiveFilters ? "Filtrelerinizi değiştirmeyi deneyin." : "Aşağıdan yeni görev ekleyerek başlayın."}</p>
-                    {hasActiveFilters ? <button onClick={clearFilters} className="mt-5 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">Filtreleri Temizle</button> : <button onClick={() => { setTimeout(() => document.querySelector<HTMLInputElement>('[data-task-input]')?.focus(), 100); }} className="mt-5 text-sm font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-4 py-2 rounded-xl transition-all">Görev Ekle</button>}
+                    {hasActiveFilters ? <button onClick={clearFilters} className="mt-5 text-sm font-bold text-blue-400 hover:text-blue-300 transition-colors">Filtreleri Temizle</button> : <button onClick={() => openGlobalTaskInput()} className="mt-5 text-sm font-bold bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 px-4 py-2 rounded-xl transition-all">Görev Ekle</button>}
                   </div>
                 )}
               </div>

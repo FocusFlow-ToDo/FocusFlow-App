@@ -18,6 +18,7 @@ import { useCategories } from "@/hooks/useCategories"
 import { StatusMilestones } from "@/components/focus/StatusMilestones"
 import { TaskDetailDrawer } from "@/components/tasks/TaskDetailDrawer"
 import { TaskCard } from "@/components/tasks/TaskCard"
+import { openGlobalTaskInput } from "@/components/focus/TaskInput"
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal"
 import { format, isSameDay, addDays, isBefore, startOfDay, isAfter, subDays } from "date-fns"
 import { tr } from "date-fns/locale"
@@ -478,7 +479,7 @@ export default function FocusPage() {
   )
 
   const focusInput = React.useCallback(() => {
-    document.querySelector<HTMLInputElement>("[data-task-input]")?.focus()
+    openGlobalTaskInput()
   }, [])
 
   const isEmpty = !activeTask && allPendingCount === 0

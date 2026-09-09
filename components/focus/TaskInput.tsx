@@ -36,6 +36,18 @@ const PRIORITIES: { id: Priority; label: string }[] = [
   { id: "urgent", label: "ACİL" },
 ]
 
+export function openGlobalTaskInput(options?: {
+  date?: Date | string | null
+  priority?: Priority
+  categoryId?: string | null
+}) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("focusflow:open-task-input", { detail: options || {} })
+    )
+  }
+}
+
 export function TaskInput({ defaultDate, focusTrigger, className }: { defaultDate?: Date | null, focusTrigger?: number, className?: string }) {
   const { settings } = useSettings()
   const { addTask } = useTasks()
@@ -71,6 +83,34 @@ export function TaskInput({ defaultDate, focusTrigger, className }: { defaultDat
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [focusTrigger, defaultDate])
+
+  // Global event trigger handle (can be called anywhere via openGlobalTaskInput)
+  React.useEffect(() => {
+    const handleTrigger = (e: any) => {
+      const detail = e.detail || {}
+      setIsOpen(true)
+      if (detail.date) {
+        setDueDate(startOfDay(new Date(detail.date)))
+      }
+      if (detail.priority) {
+        setPriority(detail.priority)
+      }
+      if (detail.categoryId !== undefined) {
+        setSelectedCategory(detail.categoryId)
+      }
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          inputRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+      }, 50)
+    }
+
+    window.addEventListener("focusflow:open-task-input", handleTrigger as EventListener)
+    return () => {
+      window.removeEventListener("focusflow:open-task-input", handleTrigger as EventListener)
+    }
+  }, [])
 
   const resetForm = React.useCallback(() => {
     setText("")

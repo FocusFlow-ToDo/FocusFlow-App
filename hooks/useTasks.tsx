@@ -553,8 +553,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       await updateDoc(doc(db, collectionPath, id), updates)
       handleActionForStreak()
+      const curCoins = settings.focusCoins ?? 100
+      updateSettings({ focusCoins: curCoins + 10 })
     },
-    [collectionPath, tasks, handleActionForStreak],
+    [collectionPath, tasks, handleActionForStreak, settings.focusCoins, updateSettings],
   )
 
   const uncompleteTask = useCallback(
@@ -574,6 +576,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       }
 
       await updateDoc(doc(db, collectionPath, id), updates)
+      const curCoins = settings.focusCoins ?? 100
+      updateSettings({ focusCoins: Math.max(0, curCoins - 10) })
 
       // Streak revert: If this was the only "done" task completed today,
       // revert the streak so it's back in danger
