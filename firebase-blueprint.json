@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "pomodoroWork": { "type": "number" },
+            "pomodoroBreak": { "type": "number" },
+            "pomodoroLongBreak": { "type": "number" },
+            "dailyGoal": { "type": "number" },
+            "theme": { "type": "string" },
+            "customGradient": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task to focus on",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["urgent", "high", "medium", "low"] },
+        "actualTime": { "type": "number" },
+        "pomodorosCompleted": { "type": "number" },
+        "status": { "type": "string", "enum": ["backlog", "active", "completed"] },
+        "category": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "completedAt": { "type": "timestamp" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" },
+        "order": { "type": "number" }
+      },
+      "required": ["title", "priority", "status", "isActive"]
+    },
+    "DailyStat": {
+      "title": "Daily Stat",
+      "description": "Daily statistics for a user",
+      "type": "object",
+      "properties": {
+        "tasksCompleted": { "type": "number" },
+        "totalFocusTime": { "type": "number" },
+        "pomodorosCompleted": { "type": "number" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "User tasks"
+    },
+    "users/{userId}/dailyStats/{date}": {
+      "schema": { "$ref": "#/entities/DailyStat" },
+      "description": "User daily stats"
+    }
+  }
+}
