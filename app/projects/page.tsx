@@ -1,43 +1,106 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { motion, AnimatePresence } from "motion/react"
+import * as React from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  FolderKanban, Plus, Calendar, CheckCircle2, Circle,
-  Trash2, Pencil, ChevronRight, Sparkles, Filter, X,
-  Target, Layers, Rocket, Check, Users, Activity, Crown,
-  UserCheck, Bell, ShieldCheck, Tag, ExternalLink,
-  FileText, Palette, Flag
-} from "lucide-react"
-import { useAuth } from "@/hooks/useAuth"
-import { useToast } from "@/contexts/ToastContext"
-import { db } from "@/firebase/config"
+  FolderKanban,
+  Plus,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Pencil,
+  ChevronRight,
+  Sparkles,
+  Filter,
+  X,
+  Target,
+  Layers,
+  Rocket,
+  Check,
+  Users,
+  Activity,
+  Crown,
+  UserCheck,
+  Bell,
+  ShieldCheck,
+  Tag,
+  ExternalLink,
+  FileText,
+  Palette,
+  Flag,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/contexts/ToastContext";
+import { db } from "@/firebase/config";
 import {
-  collection, onSnapshot, doc, setDoc, deleteDoc,
-  updateDoc, query, orderBy, serverTimestamp
-} from "firebase/firestore"
-import { cn } from "@/lib/utils"
-import type { ProjectItem, ProjectTask, SharedProject } from "@/types"
-import confetti from "canvas-confetti"
-import { useSharedProjects } from "@/hooks/useSharedProjects"
-import { CreateSharedProjectModal } from "@/components/projects/CreateSharedProjectModal"
-import { EditSharedProjectModal } from "@/components/projects/EditSharedProjectModal"
-import { SharedProjectPlannerView } from "@/components/projects/SharedProjectPlannerView"
-import { useRouter } from "next/navigation"
+  collection,
+  onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  query,
+  orderBy,
+  serverTimestamp,
+} from "firebase/firestore";
+import { cn } from "@/lib/utils";
+import type {
+  ProjectItem,
+  ProjectTask,
+  SharedCategory,
+  SharedProject,
+  SharedProjectTask,
+} from "@/types";
+import confetti from "canvas-confetti";
+import { useSharedProjects } from "@/hooks/useSharedProjects";
+import { CreateSharedProjectModal } from "@/components/projects/CreateSharedProjectModal";
+import { EditSharedProjectModal } from "@/components/projects/EditSharedProjectModal";
+import { SharedProjectPlannerView } from "@/components/projects/SharedProjectPlannerView";
+import { useRouter } from "next/navigation";
 
 const PRESET_COLORS = [
-  "#3B82F6", "#8B5CF6", "#EC4899", "#10B981", "#F59E0B", "#06B6D4"
-]
+  "#3B82F6",
+  "#8B5CF6",
+  "#EC4899",
+  "#10B981",
+  "#F59E0B",
+  "#06B6D4",
+];
 
-const PRESET_EMOJIS = ["🚀", "💡", "📚", "🎬", "💻", "🎨", "🏋️", "🎯", "🌐", "⚡"]
+const PRESET_EMOJIS = [
+  "🚀",
+  "💡",
+  "📚",
+  "🎬",
+  "💻",
+  "🎨",
+  "🏋️",
+  "🎯",
+  "🌐",
+  "⚡",
+];
+
+const PERSONAL_PROJECT_CATEGORIES: SharedCategory[] = [
+  { id: "cat_genel", name: "Genel Görevler", color: "#3B82F6", createdBy: "" },
+  {
+    id: "cat_gelistirme",
+    name: "Geliştirme & Fikirler",
+    color: "#8B5CF6",
+    createdBy: "",
+  },
+  { id: "cat_tasarim", name: "Tasarım & UI", color: "#EC4899", createdBy: "" },
+];
 
 export default function ProjectsPage() {
-  const { user } = useAuth()
-  const { showToast } = useToast()
-  const router = useRouter()
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const router = useRouter();
 
   // Project Scope Tab: "individual" | "shared"
-  const [projectScope, setProjectScope] = React.useState<"individual" | "shared">("individual")
+  const [projectScope, setProjectScope] = React.useState<
+    "individual" | "shared"
+  >("individual");
 
   // Shared projects hook
   const {
@@ -59,151 +122,180 @@ export default function ProjectsPage() {
     addCategory: addSharedCategory,
     updateCategory: updateSharedCategory,
     deleteCategory: deleteSharedCategory,
-    updateProjectStatus: updateSharedProjectStatus
-  } = useSharedProjects()
+    updateProjectStatus: updateSharedProjectStatus,
+  } = useSharedProjects();
 
   // Shared project modals
-  const [isCreateSharedModalOpen, setIsCreateSharedModalOpen] = React.useState(false)
-  const [editingSharedProject, setEditingSharedProject] = React.useState<SharedProject | null>(null)
+  const [isCreateSharedModalOpen, setIsCreateSharedModalOpen] =
+    React.useState(false);
+  const [editingSharedProject, setEditingSharedProject] =
+    React.useState<SharedProject | null>(null);
 
   // Active shared project detail/planner view state (rendered inside /projects)
-  const [activeSharedProjectId, setActiveSharedProjectId] = React.useState<string | null>(() => {
+  const [activeSharedProjectId, setActiveSharedProjectId] = React.useState<
+    string | null
+  >(() => {
     if (typeof window !== "undefined") {
       try {
-        return localStorage.getItem("ff_active_project_view")
+        return localStorage.getItem("ff_active_project_view");
       } catch {}
     }
-    return null
-  })
+    return null;
+  });
 
   const handleOpenSharedProject = (projectId: string) => {
-    setActiveSharedProjectId(projectId)
+    setActiveSharedProjectId(projectId);
     try {
-      localStorage.setItem("ff_active_project_view", projectId)
+      localStorage.setItem("ff_active_project_view", projectId);
     } catch {}
-  }
+  };
 
   const handleCloseSharedProject = () => {
-    setActiveSharedProjectId(null)
+    setActiveSharedProjectId(null);
     try {
-      localStorage.removeItem("ff_active_project_view")
+      localStorage.removeItem("ff_active_project_view");
     } catch {}
-  }
+  };
 
   const activeSharedProject = React.useMemo(() => {
-    if (!activeSharedProjectId) return null
-    return sharedProjects.find((p) => p.id === activeSharedProjectId) || null
-  }, [sharedProjects, activeSharedProjectId])
+    if (!activeSharedProjectId) return null;
+    return sharedProjects.find((p) => p.id === activeSharedProjectId) || null;
+  }, [sharedProjects, activeSharedProjectId]);
+
+  const [activeIndividualProjectId, setActiveIndividualProjectId] =
+    React.useState<string | null>(null);
+
+  const handleOpenIndividualProject = (projectId: string) => {
+    setActiveIndividualProjectId(projectId);
+  };
+
+  const handleCloseIndividualProject = () => {
+    setActiveIndividualProjectId(null);
+  };
 
   // If active project was deleted or invalid after loading, clear state
   React.useEffect(() => {
     if (activeSharedProjectId && !sharedLoading && !activeSharedProject) {
-      handleCloseSharedProject()
+      handleCloseSharedProject();
     }
-  }, [activeSharedProjectId, sharedLoading, activeSharedProject])
+  }, [activeSharedProjectId, sharedLoading, activeSharedProject]);
 
   // Individual projects state
-  const [projects, setProjects] = React.useState<ProjectItem[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [filter, setFilter] = React.useState<"all" | "planning" | "in_progress" | "completed">("all")
+  const [projects, setProjects] = React.useState<ProjectItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState<
+    "all" | "planning" | "in_progress" | "completed"
+  >("all");
 
   // Create / Edit Individual Modal State
-  const [isModalOpen, setIsModalOpen] = React.useState(false)
-  const [editingProject, setEditingProject] = React.useState<ProjectItem | null>(null)
-  const [title, setTitle] = React.useState("")
-  const [description, setDescription] = React.useState("")
-  const [color, setColor] = React.useState(PRESET_COLORS[0])
-  const [emoji, setEmoji] = React.useState(PRESET_EMOJIS[0])
-  const [status, setStatus] = React.useState<"planning" | "in_progress" | "completed">("planning")
-  const [targetDate, setTargetDate] = React.useState("")
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [editingProject, setEditingProject] =
+    React.useState<ProjectItem | null>(null);
+  const [title, setTitle] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [color, setColor] = React.useState(PRESET_COLORS[0]);
+  const [emoji, setEmoji] = React.useState(PRESET_EMOJIS[0]);
+  const [status, setStatus] = React.useState<
+    "planning" | "in_progress" | "completed"
+  >("planning");
+  const [targetDate, setTargetDate] = React.useState("");
 
   // Quick milestone input state per individual project
-  const [newMilestoneText, setNewMilestoneText] = React.useState<Record<string, string>>({})
+  const [newMilestoneText, setNewMilestoneText] = React.useState<
+    Record<string, string>
+  >({});
 
   // Quick task input state per shared project
-  const [newSharedTaskText, setNewSharedTaskText] = React.useState<Record<string, string>>({})
+  const [newSharedTaskText, setNewSharedTaskText] = React.useState<
+    Record<string, string>
+  >({});
 
   const handleAddSharedQuickTask = async (projectId: string) => {
-    const text = (newSharedTaskText[projectId] || "").trim()
-    if (!text) return
-    const proj = sharedProjects.find((p) => p.id === projectId)
-    const firstCatId = proj?.categories?.[0]?.id || "cat_genel"
-    await addSharedTask(projectId, text, firstCatId, "medium")
-    setNewSharedTaskText(prev => ({ ...prev, [projectId]: "" }))
-  }
+    const text = (newSharedTaskText[projectId] || "").trim();
+    if (!text) return;
+    const proj = sharedProjects.find((p) => p.id === projectId);
+    const firstCatId = proj?.categories?.[0]?.id || "cat_genel";
+    await addSharedTask(projectId, text, firstCatId, "medium");
+    setNewSharedTaskText((prev) => ({ ...prev, [projectId]: "" }));
+  };
 
-  const collectionPath = user ? `users/${user.uid}/projects` : null
+  const collectionPath = user ? `users/${user.uid}/projects` : null;
 
   // Real-time Firestore sync for individual projects
   React.useEffect(() => {
     if (!user || !collectionPath) {
-      setProjects([])
-      setLoading(false)
-      return
+      setProjects([]);
+      setLoading(false);
+      return;
     }
 
-    const cacheKey = `ff_projects_${user.uid}`
+    const cacheKey = `ff_projects_${user.uid}`;
     try {
-      const cached = localStorage.getItem(cacheKey)
-      if (cached) setProjects(JSON.parse(cached))
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) setProjects(JSON.parse(cached));
     } catch {}
 
-    const q = query(collection(db, collectionPath), orderBy("createdAt", "desc"))
+    const q = query(
+      collection(db, collectionPath),
+      orderBy("createdAt", "desc"),
+    );
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const items = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as ProjectItem))
-        setProjects(items)
+        const items = snapshot.docs.map(
+          (d) => ({ id: d.id, ...d.data() }) as ProjectItem,
+        );
+        setProjects(items);
         try {
-          localStorage.setItem(cacheKey, JSON.stringify(items))
+          localStorage.setItem(cacheKey, JSON.stringify(items));
         } catch {}
-        setLoading(false)
+        setLoading(false);
       },
       (err) => {
-        console.error("Projects listener error:", err)
-        setLoading(false)
-      }
-    )
+        console.error("Projects listener error:", err);
+        setLoading(false);
+      },
+    );
 
-    return unsubscribe
-  }, [user, collectionPath])
+    return unsubscribe;
+  }, [user, collectionPath]);
 
   // If there are pending invites and user hasn't switched, auto hint
   React.useEffect(() => {
     if (pendingInvites.length > 0 && projectScope === "individual") {
       // Keep individual but user sees the banner at top
     }
-  }, [pendingInvites.length, projectScope])
+  }, [pendingInvites.length, projectScope]);
 
   const openCreateModal = () => {
-    setEditingProject(null)
-    setTitle("")
-    setDescription("")
-    setColor(PRESET_COLORS[0])
-    setEmoji(PRESET_EMOJIS[0])
-    setStatus("planning")
-    setTargetDate("")
-    setIsModalOpen(true)
-  }
+    setEditingProject(null);
+    setTitle("");
+    setDescription("");
+    setColor(PRESET_COLORS[0]);
+    setEmoji(PRESET_EMOJIS[0]);
+    setStatus("planning");
+    setTargetDate("");
+    setIsModalOpen(true);
+  };
 
   const openEditModal = (p: ProjectItem) => {
-    setEditingProject(p)
-    setTitle(p.title)
-    setDescription(p.description || "")
-    setColor(p.color || PRESET_COLORS[0])
-    setEmoji(p.emoji || "🚀")
-    setStatus(p.status || "planning")
-    setTargetDate(p.targetDate || "")
-    setIsModalOpen(true)
-  }
+    setEditingProject(p);
+    setTitle(p.title);
+    setDescription(p.description || "");
+    setColor(p.color || PRESET_COLORS[0]);
+    setEmoji(p.emoji || "🚀");
+    setStatus(p.status || "planning");
+    setTargetDate(p.targetDate || "");
+    setIsModalOpen(true);
+  };
 
   const handleSaveProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!title.trim() || !collectionPath || !user) return
+    e.preventDefault();
+    if (!title.trim() || !collectionPath || !user) return;
 
     try {
       if (editingProject) {
-        const ref = doc(db, collectionPath, editingProject.id)
+        const ref = doc(db, collectionPath, editingProject.id);
         await updateDoc(ref, {
           title: title.trim(),
           description: description.trim(),
@@ -211,12 +303,12 @@ export default function ProjectsPage() {
           emoji,
           status,
           targetDate: targetDate || null,
-          updatedAt: serverTimestamp()
-        })
-        showToast({ type: "success", message: "Proje güncellendi" })
+          updatedAt: serverTimestamp(),
+        });
+        showToast({ type: "success", message: "Proje güncellendi" });
       } else {
-        const id = `prj_${Date.now()}`
-        const ref = doc(db, collectionPath, id)
+        const id = `prj_${Date.now()}`;
+        const ref = doc(db, collectionPath, id);
         const newProj: Partial<ProjectItem> = {
           id,
           title: title.trim(),
@@ -226,77 +318,503 @@ export default function ProjectsPage() {
           status,
           targetDate: targetDate || null,
           tasks: [],
+          categories: PERSONAL_PROJECT_CATEGORIES.map((category) => ({
+            ...category,
+            createdBy: user.uid,
+          })),
           userId: user.uid,
           createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        await setDoc(ref, newProj)
-        showToast({ type: "success", message: "🎉 Yeni proje oluşturuldu!" })
-        confetti({ particleCount: 25, spread: 60 })
+          updatedAt: new Date(),
+        };
+        await setDoc(ref, newProj);
+        showToast({ type: "success", message: "🎉 Yeni proje oluşturuldu!" });
+        confetti({ particleCount: 25, spread: 60 });
       }
-      setIsModalOpen(false)
+      setIsModalOpen(false);
     } catch (e) {
-      showToast({ type: "error", message: "Proje kaydedilemedi." })
+      showToast({ type: "error", message: "Proje kaydedilemedi." });
     }
-  }
+  };
 
   const handleDeleteProject = async (id: string) => {
-    if (!collectionPath) return
+    if (!collectionPath) return;
     try {
-      await deleteDoc(doc(db, collectionPath, id))
-      showToast({ type: "success", message: "Proje silindi." })
+      await deleteDoc(doc(db, collectionPath, id));
+      showToast({ type: "success", message: "Proje silindi." });
     } catch {
-      showToast({ type: "error", message: "Proje silinemedi." })
+      showToast({ type: "error", message: "Proje silinemedi." });
     }
-  }
+  };
 
   const handleAddMilestone = async (projectId: string) => {
-    const text = (newMilestoneText[projectId] || "").trim()
-    if (!text || !collectionPath) return
+    const text = (newMilestoneText[projectId] || "").trim();
+    if (!text || !collectionPath) return;
 
-    const proj = projects.find(p => p.id === projectId)
-    if (!proj) return
+    const proj = projects.find((p) => p.id === projectId);
+    if (!proj) return;
 
     const newMilestone: ProjectTask = {
       id: `ms_${Date.now()}`,
       title: text,
-      completed: false
-    }
+      completed: false,
+    };
 
-    const nextTasks = [...(proj.tasks || []), newMilestone]
+    const nextTasks = [...(proj.tasks || []), newMilestone];
     await updateDoc(doc(db, collectionPath, projectId), {
       tasks: nextTasks,
-      updatedAt: serverTimestamp()
-    })
+      updatedAt: serverTimestamp(),
+    });
 
-    setNewMilestoneText(prev => ({ ...prev, [projectId]: "" }))
-  }
+    setNewMilestoneText((prev) => ({ ...prev, [projectId]: "" }));
+  };
 
-  const handleToggleMilestone = async (projectId: string, milestoneId: string) => {
-    if (!collectionPath) return
-    const proj = projects.find(p => p.id === projectId)
-    if (!proj) return
+  const handleToggleMilestone = async (
+    projectId: string,
+    milestoneId: string,
+  ) => {
+    if (!collectionPath) return;
+    const proj = projects.find((p) => p.id === projectId);
+    if (!proj) return;
 
-    const nextTasks = (proj.tasks || []).map(t => {
-      if (t.id === milestoneId) return { ...t, completed: !t.completed }
-      return t
-    })
+    const nextTasks = (proj.tasks || []).map((t) => {
+      if (t.id === milestoneId) return { ...t, completed: !t.completed };
+      return t;
+    });
 
     await updateDoc(doc(db, collectionPath, projectId), {
       tasks: nextTasks,
-      updatedAt: serverTimestamp()
-    })
-  }
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const getPersonalProjectCategories = (
+    project: ProjectItem,
+  ): SharedCategory[] =>
+    project.categories?.length
+      ? project.categories
+      : PERSONAL_PROJECT_CATEGORIES.map((category) => ({
+          ...category,
+          createdBy: project.userId,
+        }));
+
+  const handleAddIndividualPlannerTask = async (
+    projectId: string,
+    taskTitle: string,
+    categoryId: string | null = null,
+    priority: "low" | "medium" | "high" | "urgent" = "medium",
+  ) => {
+    if (!collectionPath || !taskTitle.trim()) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const categories = getPersonalProjectCategories(project);
+    const nextTask: ProjectTask = {
+      id: `task_${Date.now()}`,
+      title: taskTitle.trim(),
+      completed: false,
+      categoryId: categoryId || categories[0]?.id || null,
+      priority,
+      order: project.tasks?.length || 0,
+      addedBy: project.userId,
+      addedByName: user?.displayName || "Ben",
+      createdAt: new Date().toISOString(),
+    };
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: [...(project.tasks || []), nextTask],
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleUpdateIndividualPlannerTask = async (
+    projectId: string,
+    taskId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      priority?: "low" | "medium" | "high" | "urgent";
+      categoryId?: string | null;
+    },
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const nextTasks = (project.tasks || []).map((task) =>
+      task.id === taskId ? { ...task, ...updates } : task,
+    );
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: nextTasks,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleDeleteIndividualPlannerTask = async (
+    projectId: string,
+    taskId: string,
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: (project.tasks || []).filter((task) => task.id !== taskId),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleRestoreIndividualPlannerTask = async (
+    projectId: string,
+    task: SharedProjectTask,
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const restoredTask: ProjectTask = {
+      id: task.id,
+      title: task.title,
+      completed: task.completed,
+      description: task.description,
+      priority: task.priority,
+      categoryId: task.categoryId,
+      order: task.order,
+      addedBy: task.addedBy,
+      addedByName: task.addedByName,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt,
+    };
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: [...(project.tasks || []), restoredTask],
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleReorderIndividualPlannerTasks = async (
+    projectId: string,
+    nextTasks: SharedProjectTask[],
+  ) => {
+    if (!collectionPath) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: nextTasks.map((task, index) => ({
+        id: task.id,
+        title: task.title,
+        completed: task.completed,
+        description: task.description,
+        priority: task.priority,
+        categoryId: task.categoryId,
+        order: index,
+        addedBy: task.addedBy,
+        addedByName: task.addedByName,
+        createdAt: task.createdAt,
+        completedAt: task.completedAt,
+      })),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleUpdateIndividualProject = async (
+    projectId: string,
+    updates: Partial<ProjectItem>,
+  ) => {
+    if (!collectionPath) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleAddIndividualCategory = async (
+    projectId: string,
+    name: string,
+    categoryColor: string,
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const nextCategory: SharedCategory = {
+      id: `cat_${Date.now()}`,
+      name,
+      color: categoryColor,
+      createdBy: project.userId,
+    };
+    await updateDoc(doc(db, collectionPath, projectId), {
+      categories: [...getPersonalProjectCategories(project), nextCategory],
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleUpdateIndividualCategory = async (
+    projectId: string,
+    categoryId: string,
+    updates: { name?: string; color?: string },
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      categories: getPersonalProjectCategories(project).map((category) =>
+        category.id === categoryId ? { ...category, ...updates } : category,
+      ),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  const handleDeleteIndividualCategory = async (
+    projectId: string,
+    categoryId: string,
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      categories: getPersonalProjectCategories(project).filter(
+        (category) => category.id !== categoryId,
+      ),
+      tasks: (project.tasks || []).map((task) =>
+        task.categoryId === categoryId ? { ...task, categoryId: null } : task,
+      ),
+      updatedAt: serverTimestamp(),
+    });
+  };
 
   const filteredIndividualProjects = React.useMemo(() => {
-    if (filter === "all") return projects
-    return projects.filter(p => p.status === filter)
-  }, [projects, filter])
+    if (filter === "all") return projects;
+    return projects.filter((p) => p.status === filter);
+  }, [projects, filter]);
 
   const filteredSharedProjects = React.useMemo(() => {
-    if (filter === "all") return sharedProjects
-    return sharedProjects.filter(p => p.status === filter)
-  }, [sharedProjects, filter])
+    if (filter === "all") return sharedProjects;
+    return sharedProjects.filter((p) => p.status === filter);
+  }, [sharedProjects, filter]);
+
+  const activeIndividualProject = React.useMemo(() => {
+    if (!activeIndividualProjectId) return null;
+    return projects.find((p) => p.id === activeIndividualProjectId) || null;
+  }, [projects, activeIndividualProjectId]);
+
+  const activeIndividualPlannerProject =
+    React.useMemo<SharedProject | null>(() => {
+      if (!activeIndividualProject) return null;
+      const categories = getPersonalProjectCategories(activeIndividualProject);
+      const userName = user?.displayName || "Ben";
+
+      return {
+        id: activeIndividualProject.id,
+        title: activeIndividualProject.title,
+        description: activeIndividualProject.description || "",
+        color: activeIndividualProject.color || PRESET_COLORS[0],
+        emoji: activeIndividualProject.emoji || "🚀",
+        status: activeIndividualProject.status || "planning",
+        targetDate: activeIndividualProject.targetDate || null,
+        leaderId: activeIndividualProject.userId,
+        leaderName: userName,
+        leaderPhotoURL: user?.photoURL || null,
+        memberId: activeIndividualProject.userId,
+        memberName: userName,
+        memberPhotoURL: user?.photoURL || null,
+        members: [activeIndividualProject.userId],
+        inviteStatus: "accepted",
+        categories,
+        tasks: (activeIndividualProject.tasks || []).map((task, index) => ({
+          id: task.id,
+          title: task.title,
+          completed: task.completed,
+          description: task.description,
+          priority: task.priority || "medium",
+          categoryId: task.categoryId || categories[0]?.id || null,
+          order: task.order ?? index,
+          addedBy: task.addedBy || activeIndividualProject.userId,
+          addedByName: task.addedByName || userName,
+          createdAt: task.createdAt || new Date().toISOString(),
+          completedAt: task.completedAt || null,
+        })),
+        activityLog: [],
+        createdAt: activeIndividualProject.createdAt,
+        updatedAt: activeIndividualProject.updatedAt,
+      };
+    }, [activeIndividualProject, user]);
+
+  const handleToggleIndividualPlannerTask = async (
+    projectId: string,
+    taskId: string,
+  ) => {
+    if (!collectionPath) return;
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    await updateDoc(doc(db, collectionPath, projectId), {
+      tasks: (project.tasks || []).map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              completed: !task.completed,
+              completedAt: !task.completed ? new Date().toISOString() : null,
+            }
+          : task,
+      ),
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  if (activeIndividualPlannerProject) {
+    return (
+      <div className="h-full flex flex-col relative overflow-hidden">
+        <SharedProjectPlannerView
+          project={activeIndividualPlannerProject}
+          onAddTask={handleAddIndividualPlannerTask}
+          onUpdateTask={handleUpdateIndividualPlannerTask}
+          onToggleTask={handleToggleIndividualPlannerTask}
+          onDeleteTask={handleDeleteIndividualPlannerTask}
+          onRestoreTask={handleRestoreIndividualPlannerTask}
+          onReorderTasks={handleReorderIndividualPlannerTasks}
+          onAddCategory={handleAddIndividualCategory}
+          onUpdateCategory={handleUpdateIndividualCategory}
+          onDeleteCategory={handleDeleteIndividualCategory}
+          onUpdateProject={handleUpdateIndividualProject}
+          onUpdateStatus={(projectId, nextStatus) =>
+            handleUpdateIndividualProject(projectId, { status: nextStatus })
+          }
+          onDeleteProject={async (projectId) => {
+            await handleDeleteProject(projectId);
+            handleCloseIndividualProject();
+          }}
+          onBackToPersonal={handleCloseIndividualProject}
+        />
+      </div>
+    );
+  }
+
+  if (activeIndividualProject) {
+    const tasks = activeIndividualProject.tasks || [];
+    const completedCount = tasks.filter((task) => task.completed).length;
+    const progressPct =
+      tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+
+    return (
+      <div className="h-full flex flex-col relative overflow-y-auto custom-scrollbar">
+        <div className="p-4 sm:p-8 max-w-4xl mx-auto w-full space-y-6">
+          <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-5">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={handleCloseIndividualProject}
+                className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-white/10 shrink-0"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180" />
+                <span>Projelerim</span>
+              </button>
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl border border-white/10"
+                style={{
+                  backgroundColor: `${activeIndividualProject.color || "#3B82F6"}20`,
+                }}
+              >
+                {activeIndividualProject.emoji || "🚀"}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg font-black text-white truncate">
+                  {activeIndividualProject.title}
+                </h1>
+                <p className="text-xs text-zinc-400 truncate">
+                  {activeIndividualProject.description ||
+                    "Kişisel proje panosu"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                handleCloseIndividualProject();
+                openEditModal(activeIndividualProject);
+              }}
+              className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors shrink-0"
+              title="Projeyi düzenle"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="glass-card rounded-3xl p-5 border border-white/10 bg-white/[0.02] space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold">
+              <span className="text-zinc-400">
+                İlerleme ({completedCount}/{tasks.length})
+              </span>
+              <span className="text-zinc-200">%{progressPct}</span>
+            </div>
+            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${progressPct}%`,
+                  backgroundColor: activeIndividualProject.color || "#3B82F6",
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="glass-card rounded-3xl p-5 border border-white/10 bg-white/[0.02]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-white">Proje Adımları</h2>
+              <span className="text-[10px] font-bold text-zinc-500">
+                {tasks.length} adım
+              </span>
+            </div>
+            <div className="space-y-2">
+              {tasks.length === 0 && (
+                <p className="py-6 text-center text-xs text-zinc-500">
+                  Henüz adım eklenmemiş.
+                </p>
+              )}
+              {tasks.map((task) => (
+                <button
+                  key={task.id}
+                  onClick={() =>
+                    handleToggleMilestone(activeIndividualProject.id, task.id)
+                  }
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] text-left transition-colors"
+                >
+                  {task.completed ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <Circle className="w-5 h-5 text-zinc-600 shrink-0" />
+                  )}
+                  <span
+                    className={cn(
+                      "text-sm flex-1",
+                      task.completed
+                        ? "line-through text-zinc-500"
+                        : "text-zinc-200",
+                    )}
+                  >
+                    {task.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/[0.05] flex items-center gap-2">
+              <input
+                value={newMilestoneText[activeIndividualProject.id] || ""}
+                onChange={(e) =>
+                  setNewMilestoneText((prev) => ({
+                    ...prev,
+                    [activeIndividualProject.id]: e.target.value,
+                  }))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter")
+                    handleAddMilestone(activeIndividualProject.id);
+                }}
+                placeholder="Yeni adım ekle..."
+                className="flex-1 bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-600 outline-none focus:border-purple-500/40"
+              />
+              <button
+                onClick={() => handleAddMilestone(activeIndividualProject.id)}
+                disabled={
+                  !(newMilestoneText[activeIndividualProject.id] || "").trim()
+                }
+                className="p-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 disabled:opacity-40"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (activeSharedProjectId && activeSharedProject) {
     return (
@@ -316,13 +834,13 @@ export default function ProjectsPage() {
           onUpdateProject={updateSharedProject}
           onUpdateStatus={updateSharedProjectStatus}
           onDeleteProject={async (id) => {
-            await deleteSharedProject(id)
-            handleCloseSharedProject()
+            await deleteSharedProject(id);
+            handleCloseSharedProject();
           }}
           onBackToPersonal={handleCloseSharedProject}
         />
       </div>
-    )
+    );
   }
 
   if (activeSharedProjectId && sharedLoading) {
@@ -330,10 +848,12 @@ export default function ProjectsPage() {
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-xs text-zinc-400 font-medium">Proje yükleniyor...</p>
+          <p className="text-xs text-zinc-400 font-medium">
+            Proje yükleniyor...
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -343,7 +863,6 @@ export default function ProjectsPage() {
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="p-4 sm:p-8 max-w-6xl mx-auto w-full space-y-6 relative z-10 pb-24">
-        
         {/* PENDING INVITES BANNER */}
         <AnimatePresence>
           {pendingInvites.length > 0 && (
@@ -355,7 +874,9 @@ export default function ProjectsPage() {
             >
               <div className="flex items-center gap-2 text-purple-300 text-xs font-black uppercase tracking-wider">
                 <Bell className="w-4 h-4 animate-bounce text-pink-400" />
-                <span>Bekleyen Ortak Proje Davetleri ({pendingInvites.length})</span>
+                <span>
+                  Bekleyen Ortak Proje Davetleri ({pendingInvites.length})
+                </span>
               </div>
 
               <div className="space-y-2">
@@ -370,11 +891,18 @@ export default function ProjectsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-white">
-                          <span className="font-bold text-purple-300">{inv.fromName}</span> seni{" "}
-                          <span className="font-bold text-white">"{inv.projectTitle}"</span> ortak projesine davet etti!
+                          <span className="font-bold text-purple-300">
+                            {inv.fromName}
+                          </span>{" "}
+                          seni{" "}
+                          <span className="font-bold text-white">
+                            "{inv.projectTitle}"
+                          </span>{" "}
+                          ortak projesine davet etti!
                         </p>
                         <p className="text-[10px] text-zinc-400 mt-0.5">
-                          Kabul ettiğinde her iki taraf da görevleri, geliştirme önerilerini ve ilerlemeyi anlık yönetecek.
+                          Kabul ettiğinde her iki taraf da görevleri, geliştirme
+                          önerilerini ve ilerlemeyi anlık yönetecek.
                         </p>
                       </div>
                     </div>
@@ -388,8 +916,8 @@ export default function ProjectsPage() {
                       </button>
                       <button
                         onClick={() => {
-                          acceptInvite(inv)
-                          setProjectScope("shared")
+                          acceptInvite(inv);
+                          setProjectScope("shared");
                         }}
                         className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-500/20 transition-all flex items-center gap-1.5"
                       >
@@ -409,11 +937,16 @@ export default function ProjectsPage() {
           <div>
             <div className="flex items-center gap-2.5 text-purple-400 mb-1">
               <FolderKanban className="w-5 h-5" />
-              <span className="text-[11px] font-black tracking-[0.2em] uppercase">VİZYON & YOL HARİTASI</span>
+              <span className="text-[11px] font-black tracking-[0.2em] uppercase">
+                VİZYON & YOL HARİTASI
+              </span>
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Projelerim</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              Projelerim
+            </h1>
             <p className="text-xs text-zinc-400 mt-1">
-              Gelecekte yapmak istediğin büyük hedefleri planla veya arkadaşınla ortak projeler yürüt.
+              Gelecekte yapmak istediğin büyük hedefleri planla veya arkadaşınla
+              ortak projeler yürüt.
             </p>
           </div>
 
@@ -426,7 +959,7 @@ export default function ProjectsPage() {
                   "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
                   projectScope === "individual"
                     ? "bg-white/10 text-white shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-500 hover:text-zinc-300",
                 )}
               >
                 <FolderKanban className="w-3.5 h-3.5" />
@@ -439,7 +972,7 @@ export default function ProjectsPage() {
                   "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 relative",
                   projectScope === "shared"
                     ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-zinc-500 hover:text-zinc-300",
                 )}
               >
                 <Users className="w-3.5 h-3.5" />
@@ -452,26 +985,30 @@ export default function ProjectsPage() {
 
             {/* Filter Tabs */}
             <div className="flex bg-white/[0.04] p-1 rounded-2xl border border-white/[0.08]">
-              {(["all", "planning", "in_progress", "completed"] as const).map((f) => {
-                const labels = {
-                  all: "Tümü",
-                  planning: "Planlanan",
-                  in_progress: "Devam Eden",
-                  completed: "Biten"
-                }
-                return (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      filter === f ? "bg-white/10 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-300"
-                    )}
-                  >
-                    {labels[f]}
-                  </button>
-                )
-              })}
+              {(["all", "planning", "in_progress", "completed"] as const).map(
+                (f) => {
+                  const labels = {
+                    all: "Tümü",
+                    planning: "Planlanan",
+                    in_progress: "Devam Eden",
+                    completed: "Biten",
+                  };
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
+                        filter === f
+                          ? "bg-white/10 text-white shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-300",
+                      )}
+                    >
+                      {labels[f]}
+                    </button>
+                  );
+                },
+              )}
             </div>
 
             {/* New Project Button */}
@@ -503,9 +1040,12 @@ export default function ProjectsPage() {
             {filteredIndividualProjects.length === 0 ? (
               <div className="py-24 text-center glass-card rounded-3xl border border-white/5 bg-white/[0.01]">
                 <Rocket className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-zinc-300">Henüz bireysel proje eklenmedi</h3>
+                <h3 className="text-base font-bold text-zinc-300">
+                  Henüz bireysel proje eklenmedi
+                </h3>
                 <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-                  Gelecekte yapmak istediğin şeyleri buraya ekleyerek adım adım gerçekleştirebilirsin.
+                  Gelecekte yapmak istediğin şeyleri buraya ekleyerek adım adım
+                  gerçekleştirebilirsin.
                 </p>
                 <button
                   onClick={openCreateModal}
@@ -518,23 +1058,38 @@ export default function ProjectsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredIndividualProjects.map((proj) => {
-                  const tasks = proj.tasks || []
-                  const completedCount = tasks.filter(t => t.completed).length
-                  const progressPct = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
+                  const tasks = proj.tasks || [];
+                  const completedCount = tasks.filter(
+                    (t) => t.completed,
+                  ).length;
+                  const progressPct =
+                    tasks.length > 0
+                      ? Math.round((completedCount / tasks.length) * 100)
+                      : 0;
 
                   const statusBadge = {
-                    planning: { label: "Planlanıyor", cls: "bg-sky-500/10 border-sky-500/20 text-sky-400" },
-                    in_progress: { label: "Devam Ediyor", cls: "bg-amber-500/10 border-amber-500/20 text-amber-400" },
-                    completed: { label: "Tamamlandı", cls: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" }
-                  }[proj.status || "planning"]
+                    planning: {
+                      label: "Planlanıyor",
+                      cls: "bg-sky-500/10 border-sky-500/20 text-sky-400",
+                    },
+                    in_progress: {
+                      label: "Devam Ediyor",
+                      cls: "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                    },
+                    completed: {
+                      label: "Tamamlandı",
+                      cls: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400",
+                    },
+                  }[proj.status || "planning"];
 
                   return (
                     <div
                       key={proj.id}
-                      className="glass-card rounded-3xl p-5 border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all flex flex-col justify-between group shadow-xl"
+                      onClick={() => handleOpenIndividualProject(proj.id)}
+                      className="glass-card rounded-3xl p-5 border border-white/10 bg-white/[0.02] hover:border-white/20 transition-all flex flex-col justify-between group shadow-xl cursor-pointer"
                       style={{
                         borderTopColor: proj.color || "#3B82F6",
-                        borderTopWidth: "3px"
+                        borderTopWidth: "3px",
                       }}
                     >
                       <div className="space-y-3">
@@ -543,13 +1098,22 @@ export default function ProjectsPage() {
                           <div className="flex items-center gap-3">
                             <div
                               className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-white/10"
-                              style={{ backgroundColor: `${proj.color || "#3B82F6"}20` }}
+                              style={{
+                                backgroundColor: `${proj.color || "#3B82F6"}20`,
+                              }}
                             >
                               {proj.emoji || "🚀"}
                             </div>
                             <div>
-                              <h3 className="font-bold text-white text-sm tracking-tight">{proj.title}</h3>
-                              <span className={cn("text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider inline-block mt-0.5", statusBadge.cls)}>
+                              <h3 className="font-bold text-white text-sm tracking-tight">
+                                {proj.title}
+                              </h3>
+                              <span
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase tracking-wider inline-block mt-0.5",
+                                  statusBadge.cls,
+                                )}
+                              >
                                 {statusBadge.label}
                               </span>
                             </div>
@@ -557,13 +1121,19 @@ export default function ProjectsPage() {
 
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => openEditModal(proj)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditModal(proj);
+                              }}
                               className="p-1.5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteProject(proj.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(proj.id);
+                              }}
                               className="p-1.5 rounded-xl hover:bg-red-500/10 text-zinc-400 hover:text-red-400"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -582,22 +1152,31 @@ export default function ProjectsPage() {
                         {proj.targetDate && (
                           <div className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                             <Calendar className="w-3 h-3 text-purple-400" />
-                            <span>Hedef: {new Date(proj.targetDate).toLocaleDateString("tr-TR")}</span>
+                            <span>
+                              Hedef:{" "}
+                              {new Date(proj.targetDate).toLocaleDateString(
+                                "tr-TR",
+                              )}
+                            </span>
                           </div>
                         )}
 
                         {/* Progress Bar */}
                         <div className="space-y-1.5 pt-1">
                           <div className="flex justify-between items-center text-[10px] font-bold">
-                            <span className="text-zinc-500">İlerleme ({completedCount}/{tasks.length})</span>
-                            <span className="text-zinc-300">%{progressPct}</span>
+                            <span className="text-zinc-500">
+                              İlerleme ({completedCount}/{tasks.length})
+                            </span>
+                            <span className="text-zinc-300">
+                              %{progressPct}
+                            </span>
                           </div>
                           <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-300"
                               style={{
                                 width: `${progressPct}%`,
-                                backgroundColor: proj.color || "#3B82F6"
+                                backgroundColor: proj.color || "#3B82F6",
                               }}
                             />
                           </div>
@@ -608,7 +1187,10 @@ export default function ProjectsPage() {
                           {tasks.slice(0, 4).map((task) => (
                             <button
                               key={task.id}
-                              onClick={() => handleToggleMilestone(proj.id, task.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleMilestone(proj.id, task.id);
+                              }}
                               className="w-full flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/5 text-left text-xs transition-colors group/item"
                             >
                               {task.completed ? (
@@ -616,24 +1198,44 @@ export default function ProjectsPage() {
                               ) : (
                                 <Circle className="w-4 h-4 text-zinc-600 group-hover/item:text-zinc-400 shrink-0" />
                               )}
-                              <span className={cn("truncate flex-1", task.completed ? "line-through text-zinc-500" : "text-zinc-300")}>
+                              <span
+                                className={cn(
+                                  "truncate flex-1",
+                                  task.completed
+                                    ? "line-through text-zinc-500"
+                                    : "text-zinc-300",
+                                )}
+                              >
                                 {task.title}
                               </span>
                             </button>
                           ))}
                           {tasks.length > 4 && (
-                            <p className="text-[10px] text-zinc-600 pl-2 font-bold">+{tasks.length - 4} adım daha</p>
+                            <p className="text-[10px] text-zinc-600 pl-2 font-bold">
+                              +{tasks.length - 4} adım daha
+                            </p>
                           )}
                         </div>
                       </div>
 
                       {/* Add Milestone Input */}
-                      <div className="mt-4 pt-2 border-t border-white/[0.04]">
+                      <div
+                        className="mt-4 pt-2 border-t border-white/[0.04]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center gap-1.5">
                           <input
                             value={newMilestoneText[proj.id] || ""}
-                            onChange={(e) => setNewMilestoneText(prev => ({ ...prev, [proj.id]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === "Enter") handleAddMilestone(proj.id) }}
+                            onChange={(e) =>
+                              setNewMilestoneText((prev) => ({
+                                ...prev,
+                                [proj.id]: e.target.value,
+                              }))
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")
+                                handleAddMilestone(proj.id);
+                            }}
                             placeholder="Yeni adım ekle..."
                             className="flex-1 bg-white/5 border border-white/5 rounded-xl px-2.5 py-1 text-xs text-white placeholder:text-zinc-600 outline-none"
                           />
@@ -647,7 +1249,7 @@ export default function ProjectsPage() {
                         </div>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
@@ -662,9 +1264,13 @@ export default function ProjectsPage() {
             {filteredSharedProjects.length === 0 ? (
               <div className="py-24 text-center glass-card rounded-3xl border border-white/5 bg-white/[0.01]">
                 <Users className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-zinc-300">Henüz ortak proje bulunmuyor</h3>
+                <h3 className="text-base font-bold text-zinc-300">
+                  Henüz ortak proje bulunmuyor
+                </h3>
                 <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-                  Bir arkadaşını seçerek ortak bir proje başlatabilir, görevleri ve geliştirme önerilerini anlık olarak birlikte yönetebilirsiniz.
+                  Bir arkadaşını seçerek ortak bir proje başlatabilir, görevleri
+                  ve geliştirme önerilerini anlık olarak birlikte
+                  yönetebilirsiniz.
                 </p>
                 <button
                   onClick={() => setIsCreateSharedModalOpen(true)}
@@ -677,11 +1283,14 @@ export default function ProjectsPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredSharedProjects.map((sp) => {
-                  const tasks = sp.tasks || []
-                  const completedTasks = tasks.filter((t) => t.completed)
-                  const progressPct = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0
-                  const categories = sp.categories || []
-                  const lastActivity = sp.activityLog?.[0]
+                  const tasks = sp.tasks || [];
+                  const completedTasks = tasks.filter((t) => t.completed);
+                  const progressPct =
+                    tasks.length > 0
+                      ? Math.round((completedTasks.length / tasks.length) * 100)
+                      : 0;
+                  const categories = sp.categories || [];
+                  const lastActivity = sp.activityLog?.[0];
 
                   return (
                     <div
@@ -690,7 +1299,7 @@ export default function ProjectsPage() {
                       className="glass-card rounded-3xl p-5 border border-white/10 bg-white/[0.02] hover:border-purple-500/40 transition-all flex flex-col justify-between group shadow-xl cursor-pointer relative overflow-hidden"
                       style={{
                         borderTopColor: sp.color || "#8B5CF6",
-                        borderTopWidth: "3px"
+                        borderTopWidth: "3px",
                       }}
                     >
                       <div className="space-y-3.5">
@@ -699,7 +1308,9 @@ export default function ProjectsPage() {
                           <div className="flex items-center gap-3">
                             <div
                               className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/10"
-                              style={{ backgroundColor: `${sp.color || "#8B5CF6"}25` }}
+                              style={{
+                                backgroundColor: `${sp.color || "#8B5CF6"}25`,
+                              }}
                             >
                               {sp.emoji || "🤝"}
                             </div>
@@ -709,7 +1320,11 @@ export default function ProjectsPage() {
                               </h3>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-[10px] px-2 py-0.2 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 font-bold uppercase tracking-wider">
-                                  {sp.status === "completed" ? "Tamamlandı" : sp.status === "in_progress" ? "Devam Ediyor" : "Planlama"}
+                                  {sp.status === "completed"
+                                    ? "Tamamlandı"
+                                    : sp.status === "in_progress"
+                                      ? "Devam Ediyor"
+                                      : "Planlama"}
                                 </span>
                                 {sp.inviteStatus === "pending" && (
                                   <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 font-medium">
@@ -724,8 +1339,8 @@ export default function ProjectsPage() {
                             <button
                               type="button"
                               onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingSharedProject(sp)
+                                e.stopPropagation();
+                                setEditingSharedProject(sp);
                               }}
                               className="p-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-zinc-400 hover:text-white transition-all shadow-sm"
                               title="Projeyi & Ayarları Düzenle"
@@ -752,26 +1367,40 @@ export default function ProjectsPage() {
                             <div className="flex items-center gap-1.5">
                               <div className="w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-[9px] font-black text-purple-300 overflow-hidden">
                                 {sp.leaderPhotoURL ? (
-                                  <img src={sp.leaderPhotoURL} alt={sp.leaderName} className="w-full h-full object-cover" />
+                                  <img
+                                    src={sp.leaderPhotoURL}
+                                    alt={sp.leaderName}
+                                    className="w-full h-full object-cover"
+                                  />
                                 ) : (
                                   sp.leaderName.slice(0, 2).toUpperCase()
                                 )}
                               </div>
-                              <span className="text-[11px] font-bold text-white max-w-[80px] truncate">{sp.leaderName}</span>
+                              <span className="text-[11px] font-bold text-white max-w-[80px] truncate">
+                                {sp.leaderName}
+                              </span>
                             </div>
 
-                            <span className="text-zinc-600 font-bold text-xs">🤝</span>
+                            <span className="text-zinc-600 font-bold text-xs">
+                              🤝
+                            </span>
 
                             {/* Member Avatar */}
                             <div className="flex items-center gap-1.5">
                               <div className="w-6 h-6 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-[9px] font-black text-blue-300 overflow-hidden">
                                 {sp.memberPhotoURL ? (
-                                  <img src={sp.memberPhotoURL} alt={sp.memberName} className="w-full h-full object-cover" />
+                                  <img
+                                    src={sp.memberPhotoURL}
+                                    alt={sp.memberName}
+                                    className="w-full h-full object-cover"
+                                  />
                                 ) : (
                                   sp.memberName.slice(0, 2).toUpperCase()
                                 )}
                               </div>
-                              <span className="text-[11px] font-bold text-white max-w-[80px] truncate">{sp.memberName}</span>
+                              <span className="text-[11px] font-bold text-white max-w-[80px] truncate">
+                                {sp.memberName}
+                              </span>
                             </div>
                           </div>
 
@@ -785,16 +1414,19 @@ export default function ProjectsPage() {
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-center text-[10px] font-bold">
                             <span className="text-zinc-500">
-                              Görevler ({completedTasks.length} / {tasks.length})
+                              Görevler ({completedTasks.length} / {tasks.length}
+                              )
                             </span>
-                            <span className="text-purple-300">%{progressPct}</span>
+                            <span className="text-purple-300">
+                              %{progressPct}
+                            </span>
                           </div>
                           <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all duration-300"
                               style={{
                                 width: `${progressPct}%`,
-                                backgroundColor: sp.color || "#8B5CF6"
+                                backgroundColor: sp.color || "#8B5CF6",
                               }}
                             />
                           </div>
@@ -810,14 +1442,16 @@ export default function ProjectsPage() {
                                 style={{
                                   backgroundColor: `${c.color}15`,
                                   color: c.color,
-                                  border: `1px solid ${c.color}30`
+                                  border: `1px solid ${c.color}30`,
                                 }}
                               >
                                 {c.name}
                               </span>
                             ))}
                             {categories.length > 3 && (
-                              <span className="text-[9px] text-zinc-600">+{categories.length - 3}</span>
+                              <span className="text-[9px] text-zinc-600">
+                                +{categories.length - 3}
+                              </span>
                             )}
                           </div>
                         )}
@@ -825,14 +1459,16 @@ export default function ProjectsPage() {
                         {/* Tasks list preview & quick management */}
                         <div className="space-y-1 pt-1.5 border-t border-white/[0.04]">
                           {tasks.length === 0 && (
-                            <p className="text-[11px] text-zinc-600 pl-1 py-1 italic">Henüz görev eklenmemiş</p>
+                            <p className="text-[11px] text-zinc-600 pl-1 py-1 italic">
+                              Henüz görev eklenmemiş
+                            </p>
                           )}
                           {tasks.slice(0, 5).map((t) => (
                             <div
                               key={t.id}
                               onClick={(e) => {
-                                e.stopPropagation()
-                                toggleSharedTask(sp.id, t.id)
+                                e.stopPropagation();
+                                toggleSharedTask(sp.id, t.id);
                               }}
                               className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-white/5 text-xs transition-colors group/item cursor-pointer"
                             >
@@ -841,7 +1477,14 @@ export default function ProjectsPage() {
                               ) : (
                                 <Circle className="w-3.5 h-3.5 text-zinc-600 group-hover/item:text-purple-400 shrink-0 transition-colors" />
                               )}
-                              <span className={cn("truncate flex-1 text-[11px]", t.completed ? "line-through text-zinc-500" : "text-zinc-200")}>
+                              <span
+                                className={cn(
+                                  "truncate flex-1 text-[11px]",
+                                  t.completed
+                                    ? "line-through text-zinc-500"
+                                    : "text-zinc-200",
+                                )}
+                              >
                                 {t.title}
                               </span>
                               {t.completed && t.completedByName && (
@@ -852,21 +1495,31 @@ export default function ProjectsPage() {
                             </div>
                           ))}
                           {tasks.length > 5 && (
-                            <p className="text-[10px] text-zinc-600 pl-2 font-bold">+{tasks.length - 5} görev daha</p>
+                            <p className="text-[10px] text-zinc-600 pl-2 font-bold">
+                              +{tasks.length - 5} görev daha
+                            </p>
                           )}
                         </div>
                       </div>
 
                       {/* Add Quick Task Input on Shared Project Card */}
-                      <div className="mt-3 pt-2 border-t border-white/[0.04]" onClick={(e) => e.stopPropagation()}>
+                      <div
+                        className="mt-3 pt-2 border-t border-white/[0.04]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="flex items-center gap-1.5">
                           <input
                             value={newSharedTaskText[sp.id] || ""}
-                            onChange={(e) => setNewSharedTaskText(prev => ({ ...prev, [sp.id]: e.target.value }))}
+                            onChange={(e) =>
+                              setNewSharedTaskText((prev) => ({
+                                ...prev,
+                                [sp.id]: e.target.value,
+                              }))
+                            }
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
-                                e.preventDefault()
-                                handleAddSharedQuickTask(sp.id)
+                                e.preventDefault();
+                                handleAddSharedQuickTask(sp.id);
                               }
                             }}
                             placeholder="Yeni görev ekle..."
@@ -886,7 +1539,11 @@ export default function ProjectsPage() {
                       <div className="mt-4 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-zinc-500">
                         {lastActivity ? (
                           <span className="truncate max-w-[200px]">
-                            ⚡ <b className="text-zinc-400">{lastActivity.userName}</b>: {lastActivity.detail}
+                            ⚡{" "}
+                            <b className="text-zinc-400">
+                              {lastActivity.userName}
+                            </b>
+                            : {lastActivity.detail}
                           </span>
                         ) : (
                           <span>Henüz aktivite yok</span>
@@ -896,13 +1553,12 @@ export default function ProjectsPage() {
                         </span>
                       </div>
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
           </>
         )}
-
       </div>
 
       {/* CREATE / EDIT INDIVIDUAL PROJECT MODAL */}
@@ -924,7 +1580,10 @@ export default function ProjectsPage() {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 className="w-full max-w-xl pointer-events-auto bg-[#121217] backdrop-blur-3xl rounded-[32px] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)] border border-white/10 overflow-hidden flex flex-col max-h-[82vh]"
               >
-                <form onSubmit={handleSaveProject} className="flex flex-col h-full">
+                <form
+                  onSubmit={handleSaveProject}
+                  className="flex flex-col h-full"
+                >
                   {/* Top Input Header */}
                   <div className="flex items-center px-6 h-18 sm:h-20 gap-3.5 border-b border-white/[0.04] bg-white/[0.01]">
                     <div className="flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] rounded-2xl px-2.5 py-1.5 hover:bg-white/[0.08] transition-colors">
@@ -934,8 +1593,14 @@ export default function ProjectsPage() {
                         onChange={(e) => setEmoji(e.target.value)}
                         className="bg-transparent text-xs text-white outline-none cursor-pointer"
                       >
-                        {PRESET_EMOJIS.map(em => (
-                          <option key={em} value={em} className="bg-zinc-900 text-white">{em}</option>
+                        {PRESET_EMOJIS.map((em) => (
+                          <option
+                            key={em}
+                            value={em}
+                            className="bg-zinc-900 text-white"
+                          >
+                            {em}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -985,9 +1650,24 @@ export default function ProjectsPage() {
                       </p>
                       <div className="flex items-center gap-1.5 p-1 bg-white/[0.03] rounded-xl border border-white/[0.05] w-fit">
                         {[
-                          { id: "planning", label: "Planlanıyor", color: "text-sky-400 bg-sky-500/10 border-sky-500/20" },
-                          { id: "in_progress", label: "Devam Ediyor", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-                          { id: "completed", label: "Tamamlandı", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+                          {
+                            id: "planning",
+                            label: "Planlanıyor",
+                            color:
+                              "text-sky-400 bg-sky-500/10 border-sky-500/20",
+                          },
+                          {
+                            id: "in_progress",
+                            label: "Devam Ediyor",
+                            color:
+                              "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                          },
+                          {
+                            id: "completed",
+                            label: "Tamamlandı",
+                            color:
+                              "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                          },
                         ].map((st) => (
                           <button
                             key={st.id}
@@ -996,8 +1676,11 @@ export default function ProjectsPage() {
                             className={cn(
                               "px-3.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all duration-200 border border-transparent",
                               status === st.id
-                                ? cn(st.color, "shadow-sm scale-[1.03] border-white/5")
-                                : "text-zinc-500 hover:text-zinc-300"
+                                ? cn(
+                                    st.color,
+                                    "shadow-sm scale-[1.03] border-white/5",
+                                  )
+                                : "text-zinc-500 hover:text-zinc-300",
                             )}
                           >
                             {st.label}
@@ -1013,14 +1696,16 @@ export default function ProjectsPage() {
                           <Palette className="w-3 h-3" /> Renk Teması
                         </p>
                         <div className="flex items-center gap-2 p-1.5 bg-white/[0.03] rounded-xl border border-white/[0.05] w-fit">
-                          {PRESET_COLORS.map(c => (
+                          {PRESET_COLORS.map((c) => (
                             <button
                               key={c}
                               type="button"
                               onClick={() => setColor(c)}
                               className={cn(
                                 "w-6 h-6 rounded-full transition-transform duration-200",
-                                color === c ? "scale-125 ring-2 ring-white shadow-md" : "opacity-60 hover:opacity-100"
+                                color === c
+                                  ? "scale-125 ring-2 ring-white shadow-md"
+                                  : "opacity-60 hover:opacity-100",
                               )}
                               style={{ backgroundColor: c }}
                             />
@@ -1056,7 +1741,9 @@ export default function ProjectsPage() {
                       disabled={!title.trim()}
                       className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black shadow-lg shadow-purple-500/20 disabled:opacity-40 transition-all flex items-center gap-2 active:scale-95"
                     >
-                      {editingProject ? "Projeyi Güncelle" : "Projeyi Oluştur 🚀"}
+                      {editingProject
+                        ? "Projeyi Güncelle"
+                        : "Projeyi Oluştur 🚀"}
                     </button>
                   </div>
                 </form>
@@ -1085,5 +1772,5 @@ export default function ProjectsPage() {
         onDeleteProject={deleteSharedProject}
       />
     </div>
-  )
+  );
 }
